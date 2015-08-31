@@ -15,19 +15,21 @@ import json
 import config
 import variant_calling
 import preprocessing
-references = ['Ecoli', 'human']
+references = ['Ecoli', 'Homo_sapiens/UCSC/hg19/Sequence/WholeGenomeFasta/genome.fa', 'Homo_sapiens/Ensembl/GRCh37/Sequence/WholeGenomeFasta/genome.fa']
 
 def main(args):
     jsonfile = open('/data/input/AppSession.json')
     jsonObject = json.load(jsonfile)
 
-    sampleID = []
+    sampleIDs = []
+    sampleNames = []
     sampleHref = []
     sampleName = []
     sampleDir = []
     samples = []
 
     ref_num = 0
+    project_id = 0
     is_human = False
 
     # parsing "Properties"
@@ -36,30 +38,22 @@ def main(args):
             continue
         if entry["Name"] == "Input.project-id":
             project_id = entry["Content"]["Id"]
-            config.basespace_output_dir = os.path.join(config.UROOT, project_id)
+            config.basespace_output_dir = os.path.join(config.UROOT, project_id, 'Results')
 
         # sample properties
-        elif entry['Name'] == 'Input.Samples':
+        elif entry['Name'] == 'Input.AppResults':
             for sample in range(len(entry['Items'])):
-                sampleID.append(entry['Items'][sample]['Id'])
-                sampleHref.append(entry['Items'][sample]['Href'])
-                sampleName.append(entry['Items'][sample]['Name'])
-                sampleDir = '/data/input/samples/%s/Data/Intensities/BaseCalls/' % sampleID[-1]
-                if not os.path.exists(sampleDir):
-                    sampleDir = '/data/input/samples/%s/' % sampleID[-1]
+                sampleID = entry['Items'][sample]['Id']
+                sampleDir = '/data/input/appresults/%s/' % sampleID
                 for root, dirs, files in os.walk(str(sampleDir)):
-                    R1files = fnmatch.filter(files,'*_R1_*')
-                    R2files = fnmatch.filter(files,'*_R2_*')
-                if len(R1files) != len(R2files):
-                    print "number of R1 and R2 files do not match"
-                    sys.exit()
-                R1files.sort()
-                R2files.sort()
-                samples.append(map(lambda x, y: (sampleDir + x, sampleDir + y), R1files, R2files))
-                config.basespace_output_dir = os.path.join(config.basespace_output_dir, entry['Items'][sample]['Name'])
+                    for name in files:
+                        if name.endswith('.bam'):
+                            samples.append(os.path.join(root, name))
+                            sampleIDs.append(entry['Items'][sample]['Id'])
+                            sampleNames.append(entry['Items'][sample]['Name'])
         elif entry['Name'] == 'Input.select-ref':
             ref_num = int(entry['Content'])
-            if ref_num == 1:
+            if ref_num > 0:
                 is_human = True
 
     config.temp_output_dir = config.OUT_ROOT
@@ -75,10 +69,11 @@ def main(args):
         shutil.rmtree(config.temp_output_dir)
     os.makedirs(config.temp_output_dir)
 
-    ref_fpath = os.path.join(config.DIR_HOME, 'genomes', references[ref_num] + '.fa')
+    ref_fpath = os.path.join('/genomes', references[ref_num])
     # one sample per launch in multi-node mode
-    bam_fpath = preprocessing.do(ref_fpath, samples[0], sampleID[0], config.temp_output_dir, config.basespace_output_dir, is_human)
-    variant_calling.do(ref_fpath, sampleID[0], bam_fpath, config.temp_output_dir, config.basespace_output_dir, is_human)
+
+    bam_fpaths = preprocessing.do(ref_fpath, samples, sampleIDs, config.temp_output_dir, config.basespace_output_dir, is_human, project_id)
+    variant_calling.do(ref_fpath, sampleIDs, bam_fpaths, config.temp_output_dir, config.basespace_output_dir, is_human, project_id)
     return
 
 if __name__ == '__main__':
