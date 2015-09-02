@@ -12,15 +12,30 @@ import config
 import utils
 
 gatk_dirpath = os.path.join(config.LIBS_LOCATION, 'gatk')
+chr_names_hg19 = ['chr1', 'chr2', 'chr3', 'chr4', 'chr5', 'chr6', 'chr7', 'chr8', 'chr9', 'chr10',
+                  'chr11', 'chr12', 'chr13', 'chr14', 'chr15', 'chr16', 'chr17', 'chr18', 'chr19', 'chr20',
+                  'chr21', 'chr22', 'chrX', 'chrY', 'chrM']
 
 def gatk_fpath():
     return os.path.join(gatk_dirpath, 'GenomeAnalysisTK.jar')
 
 def process_single_file(ref_fpath, sampleID, bam_fpath, output_dirpath):
     log_fpath = os.path.join(output_dirpath, sampleID + '.log')
-    raw_g_vcf_fpath = os.path.join(output_dirpath, sampleID + '.g.vcf')
+    from libs.joblib import Parallel, delayed
+    n_jobs = min(len(chr_names_hg19), config.threads)
 
-    utils.call_subprocess(['java', '-jar', gatk_fpath(), '-T', 'HaplotypeCaller', '-R', ref_fpath,
+    raw_vcf_fpaths = Parallel(n_jobs=n_jobs)(delayed(process_single_chr)(ref_fpath, sampleID, bam_fpath, output_dirpath, log_fpath, chr)
+                                               for chr in chr_names_hg19)
+    merge_vcf_fpath = os.path.join(output_dirpath, sampleID + '.g.vcf')
+    variants = '--variant ' + ' --variant '.join(raw_vcf_fpaths)
+    cmd = ("java -jar {gatk_path} -T CombineVariants -R {ref_fpath} -I {bam_fpath} {variants} "
+               "-genotypeMergeOptions UNIQUIFY -o {merge_vcf_fpath}").format(**locals())
+    utils.call_subprocess(shlex.split(cmd), stderr=open(log_fpath, 'a'))
+    return merge_vcf_fpath
+
+def process_single_chr(ref_fpath, sampleID, bam_fpath, output_dirpath, log_fpath, chr):
+    raw_g_vcf_fpath = os.path.join(output_dirpath, sampleID + chr + '.g.vcf')
+    utils.call_subprocess(['java', '-jar', gatk_fpath(), '-T', 'HaplotypeCaller', '-R', ref_fpath, '-L', chr,
                             '-I', bam_fpath, '-stand_emit_conf', '10',
                           '-stand_call_conf', '30', '-ERC', 'GVCF', '-variant_index_type', 'LINEAR',
                            '-variant_index_parameter', '128000', '-o', raw_g_vcf_fpath], stderr=open(log_fpath, 'a'))
@@ -28,12 +43,9 @@ def process_single_file(ref_fpath, sampleID, bam_fpath, output_dirpath):
 
 def process_files(ref_fpath, sampleIDs, bam_fpaths, scratch_dirpath, output_dirpath, is_human, project_id):
 
-
-    from libs.joblib import Parallel, delayed
-    n_jobs = min(len(bam_fpaths), config.threads)
     print 'Calling variants...'
-    raw_vcf_fpaths = Parallel(n_jobs=n_jobs)(delayed(process_single_file)(ref_fpath, sampleIDs[i], bam_fpaths[i], output_dirpath)
-                                               for i in range(len(bam_fpaths)))
+    raw_vcf_fpaths = [process_single_file(ref_fpath, sampleIDs[i], bam_fpaths[i], output_dirpath)
+                                               for i in range(len(bam_fpaths))]
     vcf_fpath = os.path.join(output_dirpath, project_id + '.vcf')
     if is_human:
         log_fpath = os.path.join(output_dirpath, project_id + '.log')
@@ -52,7 +64,7 @@ def process_files(ref_fpath, sampleIDs, bam_fpaths, scratch_dirpath, output_dirp
         tranches_indel_fpath = os.path.join(scratch_dirpath, project_id + '_INDEL.tranches')
         variants = '--variant ' + ' --variant '.join(raw_vcf_fpaths)
         print 'Joint genotyping...'
-        cmd = ("java -jar {gatk_path} -T GenotypeGVCFs -R {ref_fpath} -L chr21 {variants} "
+        cmd = ("java -jar {gatk_path} -T GenotypeGVCFs -R {ref_fpath} {variants} "
                "-o {raw_vcf_fpath}").format(**locals())
         utils.call_subprocess(shlex.split(cmd), stderr=open(log_fpath, 'a'))
 

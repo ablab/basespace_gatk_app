@@ -41,16 +41,16 @@ def main(args):
             config.basespace_output_dir = os.path.join(config.UROOT, project_id, 'Results')
 
         # sample properties
-        elif entry['Name'] == 'Input.AppResults':
+        elif entry['Name'] == 'Input.Files':
             for sample in range(len(entry['Items'])):
-                sampleID = entry['Items'][sample]['Id']
+                sampleID = entry['Items'][sample]['ParentAppResult']['Id']
                 sampleDir = '/data/input/appresults/%s/' % sampleID
                 for root, dirs, files in os.walk(str(sampleDir)):
                     for name in files:
                         if name.endswith('.bam'):
                             samples.append(os.path.join(root, name))
-                            sampleIDs.append(entry['Items'][sample]['Id'])
-                            sampleNames.append(entry['Items'][sample]['Name'])
+                            sampleIDs.append(entry['Items'][sample]['ParentAppResult']['Id'])
+                            sampleNames.append(entry['Items'][sample]['ParentAppResult']['Name'])
         elif entry['Name'] == 'Input.select-ref':
             ref_num = int(entry['Content'])
             if ref_num > 0:
