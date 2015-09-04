@@ -13,6 +13,7 @@ DIR_HOME = os.path.abspath(os.path.dirname(os.path.realpath(__file__)))
 LIBS_LOCATION = os.path.join(DIR_HOME, 'libs')
 temp_output_dir = os.path.join(DIR_HOME, 'output')
 threads = 4
+max_gatk_threads = 8
 memory = 2
 basespace_output_dir = ''
 

@@ -71,7 +71,7 @@ def process_single_sample(ref_fpath, sampleID, bam_fpath, scratch_dirpath, outpu
 def do(ref_fpath, samples, sampleIDs, scratch_dirpath, output_dirpath, is_human, project_id):
     from libs.joblib import Parallel, delayed
     n_jobs = min(len(samples), config.threads)
-    num_threads = min(8, config.threads//n_jobs)
+    num_threads = min(config.max_gatk_threads, config.threads//n_jobs)
     final_bam_fpaths = Parallel(n_jobs=n_jobs)(delayed(process_single_sample)(ref_fpath, sampleIDs[i], samples[i], scratch_dirpath, output_dirpath, is_human, project_id, str(num_threads))
                                                for i in range(len(samples)))
     return final_bam_fpaths

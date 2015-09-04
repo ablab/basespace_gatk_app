@@ -19,16 +19,17 @@ chr_names_hg19 = ['chr1', 'chr2', 'chr3', 'chr4', 'chr5', 'chr6', 'chr7', 'chr8'
 def gatk_fpath():
     return os.path.join(gatk_dirpath, 'GenomeAnalysisTK.jar')
 
-def process_single_file(ref_fpath, sampleID, bam_fpath, output_dirpath):
+def process_single_file(ref_fpath, sampleID, bam_fpath, output_dirpath, scratch_dirpath):
     log_fpath = os.path.join(output_dirpath, sampleID + '.log')
     from libs.joblib import Parallel, delayed
-    n_jobs = min(len(chr_names_hg19), config.threads)
+    n_jobs = min(len(chr_names_hg19), config.max_gatk_threads)
 
-    raw_vcf_fpaths = Parallel(n_jobs=n_jobs)(delayed(process_single_chr)(ref_fpath, sampleID, bam_fpath, output_dirpath, log_fpath, chr)
+    raw_vcf_fpaths = Parallel(n_jobs=n_jobs)(delayed(process_single_chr)(ref_fpath, sampleID, bam_fpath, scratch_dirpath, log_fpath, chr)
                                                for chr in chr_names_hg19)
     merge_vcf_fpath = os.path.join(output_dirpath, sampleID + '.g.vcf')
     variants = '--variant ' + ' --variant '.join(raw_vcf_fpaths)
-    cmd = ("java -jar {gatk_path} -T CombineVariants -R {ref_fpath} -I {bam_fpath} {variants} "
+    gatk_path = gatk_fpath()
+    cmd = ("java -jar {gatk_path} -T CombineVariants -R {ref_fpath} {variants} "
                "-genotypeMergeOptions UNIQUIFY -o {merge_vcf_fpath}").format(**locals())
     utils.call_subprocess(shlex.split(cmd), stderr=open(log_fpath, 'a'))
     return merge_vcf_fpath
@@ -44,7 +45,7 @@ def process_single_chr(ref_fpath, sampleID, bam_fpath, output_dirpath, log_fpath
 def process_files(ref_fpath, sampleIDs, bam_fpaths, scratch_dirpath, output_dirpath, is_human, project_id):
 
     print 'Calling variants...'
-    raw_vcf_fpaths = [process_single_file(ref_fpath, sampleIDs[i], bam_fpaths[i], output_dirpath)
+    raw_vcf_fpaths = [process_single_file(ref_fpath, sampleIDs[i], bam_fpaths[i], output_dirpath, scratch_dirpath)
                                                for i in range(len(bam_fpaths))]
     vcf_fpath = os.path.join(output_dirpath, project_id + '.vcf')
     if is_human:
