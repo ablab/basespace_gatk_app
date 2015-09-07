@@ -57,7 +57,7 @@ def process_single_sample(ref_fpath, sampleID, bam_fpath, scratch_dirpath, outpu
         utils.call_subprocess(['java', '-jar', gatk_fpath(), '-T', 'AnalyzeCovariates', '-R', ref_fpath,
                                 '-before', recaltable_fpath, '-after',  post_recaltable_fpath,
                               '-csv', csv_fpath], stderr=open(log_fpath, 'a'))
-        utils.call_subprocess(['java', '-jar', gatk_fpath(), '-T', 'PrintReads', '-R', ref_fpath,
+        utils.call_subprocess(['java', '-jar', gatk_fpath(), '-T', 'PrintReads', '-R', ref_fpath, '-nct', num_threads,
                                 '-I', realignedbam_fpath, '-BQSR', recaltable_fpath,
                               '-o', final_bam_fpath], stderr=open(log_fpath, 'a'))
     else:
