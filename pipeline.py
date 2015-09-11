@@ -22,7 +22,7 @@ def main(args):
     jsonObject = json.load(jsonfile)
 
     sampleIDs = []
-    sampleNames = []
+    sample_names = []
     sampleHref = []
     sampleName = []
     sampleDir = []
@@ -41,16 +41,16 @@ def main(args):
             config.basespace_output_dir = os.path.join(config.UROOT, project_id, 'Results')
 
         # sample properties
-        elif entry['Name'] == 'Input.Files':
+        elif entry['Name'] == 'Input.AppResults':
             for sample in range(len(entry['Items'])):
-                sampleID = entry['Items'][sample]['ParentAppResult']['Id']
+                sampleID = entry['Items'][sample]['Id']
                 sampleDir = '/data/input/appresults/%s/' % sampleID
                 for root, dirs, files in os.walk(str(sampleDir)):
                     for name in files:
                         if name.endswith('.bam'):
                             samples.append(os.path.join(root, name))
-                            sampleIDs.append(entry['Items'][sample]['ParentAppResult']['Id'])
-                            sampleNames.append(entry['Items'][sample]['ParentAppResult']['Name'])
+                            sampleIDs.append(entry['Items'][sample]['Id'])
+                            sample_names.append(entry['Items'][sample]['Name'])
         elif entry['Name'] == 'Input.select-ref':
             ref_num = int(entry['Content'])
             if ref_num > 0:
@@ -73,7 +73,7 @@ def main(args):
     # one sample per launch in multi-node mode
 
     bam_fpaths = preprocessing.do(ref_fpath, samples, sampleIDs, config.temp_output_dir, config.basespace_output_dir, is_human, project_id)
-    variant_calling.do(ref_fpath, sampleIDs, bam_fpaths, config.temp_output_dir, config.basespace_output_dir, is_human, project_id)
+    variant_calling.do(ref_fpath, sampleIDs, bam_fpaths, config.temp_output_dir, config.basespace_output_dir, is_human, project_id, samples, sample_names)
     return
 
 if __name__ == '__main__':
