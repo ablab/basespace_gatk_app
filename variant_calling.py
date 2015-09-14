@@ -12,6 +12,9 @@ import config
 import utils
 from libs.joblib import Parallel, delayed
 gatk_dirpath = os.path.join(config.LIBS_LOCATION, 'gatk')
+bgzip_fpath = os.path.join(config.LIBS_LOCATION, 'misc', 'bgzip')
+tabix_fpath = os.path.join(config.LIBS_LOCATION, 'misc', 'tabix')
+
 chr_names_hg19 = ['chrM', 'chr1', 'chr2', 'chr3', 'chr4', 'chr5', 'chr6', 'chr7', 'chr8', 'chr9', 'chr10',
                   'chr11', 'chr12', 'chr13', 'chr14', 'chr15', 'chr16', 'chr17', 'chr18', 'chr19', 'chr20',
                   'chr21', 'chr22', 'chrX', 'chrY']
@@ -125,10 +128,15 @@ def process_files(ref_fpath, sampleIDs, bam_fpaths, scratch_dirpath, output_dirp
                "-noST -noEV -EV TiTvVariantEvaluator -ST Sample -o {report_tstv_fpath}").format(**locals())
     utils.call_subprocess(shlex.split(cmd), stderr=open(log_fpath, 'a'))
     printReport(report_vars_fpath, report_tstv_fpath, sample_names, sample_files, output_dirpath)
+
+    utils.call_subprocess([bgzip_fpath, vcf_fpath], stderr=open(log_fpath, 'a'))
+    utils.call_subprocess([tabix_fpath, '-p', 'vcf', vcf_fpath + '.gz'], stderr=open(log_fpath, 'a'))
     return vcf_fpath
 
 def printReport(report_vars_fpath, report_tstv_fpath, sample_names, sample_files, output_dirpath):
     all_values = dict((id, []) for id in sample_names)
+    if not report_vars_fpath or not report_tstv_fpath:
+        return
     report_vars = open(report_vars_fpath).read().split('\n')
     for line in report_vars:
         if not line:
