@@ -127,15 +127,16 @@ def process_files(ref_fpath, sampleIDs, bam_fpaths, scratch_dirpath, output_dirp
     cmd = ("java -jar {gatk_path} -T VariantEval -R {ref_fpath} -eval {vcf_fpath} "
                "-noST -noEV -EV TiTvVariantEvaluator -ST Sample -o {report_tstv_fpath}").format(**locals())
     utils.call_subprocess(shlex.split(cmd), stderr=open(log_fpath, 'a'))
-    printReport(report_vars_fpath, report_tstv_fpath, sample_names, sample_files, output_dirpath)
+    printReport(report_vars_fpath, report_tstv_fpath, sample_names, sampleIDs, sample_files, output_dirpath)
 
     utils.call_subprocess([bgzip_fpath, vcf_fpath], stderr=open(log_fpath, 'a'))
     utils.call_subprocess([tabix_fpath, '-p', 'vcf', vcf_fpath + '.gz'], stderr=open(log_fpath, 'a'))
     return vcf_fpath
 
-def printReport(report_vars_fpath, report_tstv_fpath, sample_names, sample_files, output_dirpath):
-    all_values = dict((id, []) for id in sample_names)
-    if not report_vars_fpath or not report_tstv_fpath:
+def printReport(report_vars_fpath, report_tstv_fpath, sample_names, sample_IDs, sample_files, output_dirpath):
+    all_values = {}
+    samples = []
+    if not os.path.exists(report_vars_fpath) or not os.path.exists(report_tstv_fpath):
         return
     report_vars = open(report_vars_fpath).read().split('\n')
     for line in report_vars:
@@ -144,7 +145,10 @@ def printReport(report_vars_fpath, report_tstv_fpath, sample_names, sample_files
         if line[0] == "#":
             continue
         line = line.split()
-        if line[3] in sample_names:
+        if line[3] in sample_names or line[3] in sample_IDs:
+            if line[3] not in all_values:
+                samples.append(line[3])
+                all_values[line[3]] = []
             all_values[line[3]].extend(zip(col_names_count_vars, line))
     report_vars = open(report_tstv_fpath).read().split('\n')
     for line in report_vars:
@@ -153,21 +157,24 @@ def printReport(report_vars_fpath, report_tstv_fpath, sample_names, sample_files
         if line[0] == "#":
             continue
         line = line.split()
-        if line[3] in sample_names:
+        if line[3] in sample_names or line[3] in sample_IDs:
+            if line[3] not in all_values:
+                samples.append(line[3])
+                all_values[line[3]] = []
             all_values[line[3]].extend(zip(col_names_titv, line))
-    report_values = [[i+1, sample_names[i], sample_files[i]] for i in range(len(sample_names))]
-    snp_values = [[all_values[id][row_num][1] for row_num in range(len(all_values[sample_names[0]])) if all_values[sample_names[0]][row_num][0] in snp_col_values] for id in sample_names]
-    indel_values = [[all_values[id][row_num][1] for row_num in range(len(all_values[sample_names[0]])) if all_values[sample_names[0]][row_num][0] in indel_col_values] for id in sample_names]
-    tstv_values = [[all_values[id][row_num][1] for row_num in range(len(all_values[sample_names[0]])) if all_values[sample_names[0]][row_num][0] in tstv_col_values] for id in sample_names]
+    report_values = [[i+1, samples[i], sample_files[i]] for i in range(len(sample_names))]
+    snp_values = [[all_values[id][row_num][1] for row_num in range(len(all_values[samples[0]])) if all_values[samples[0]][row_num][0] in snp_col_values] for id in samples]
+    indel_values = [[all_values[id][row_num][1] for row_num in range(len(all_values[samples[0]])) if all_values[samples[0]][row_num][0] in indel_col_values] for id in samples]
+    tstv_values = [[all_values[id][row_num][1] for row_num in range(len(all_values[samples[0]])) if all_values[samples[0]][row_num][0] in tstv_col_values] for id in samples]
 
     info_fpath = os.path.join(output_dirpath, "File_Info.tsv")
     saveTsv(info_fpath, report_col_names, report_values)
     snp_fpath = os.path.join(output_dirpath, "SNP_Info.tsv")
-    saveTsv(snp_fpath, first_col + snp_col_names, snp_values, sample_names)
+    saveTsv(snp_fpath, first_col + snp_col_names, snp_values, samples)
     indels_fpath = os.path.join(output_dirpath, "Indel_Info.tsv")
-    saveTsv(indels_fpath, first_col + indel_col_names, indel_values, sample_names)
+    saveTsv(indels_fpath, first_col + indel_col_names, indel_values, samples)
     tstv_fpath = os.path.join(output_dirpath, "TsTv_Info.tsv")
-    saveTsv(tstv_fpath, first_col + tstv_col_names, tstv_values, sample_names)
+    saveTsv(tstv_fpath, first_col + tstv_col_names, tstv_values, samples)
 
 
 def saveTsv(tsv_fpath, col_names, row_values, sample_names=None):

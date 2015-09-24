@@ -7,8 +7,8 @@
 #############################################################################
 
 import os
-from os.path import relpath
 import subprocess
+import sys
 
 
 def name_from_fpath(fpath):
@@ -24,7 +24,8 @@ def call_subprocess(args, stdin=None, stdout=None, stderr=None, env=None):
         printed_args += ['2>>' if stderr.mode in ['a', 'a+'] else '2>', stderr.name]
 
     return_code = subprocess.call(args, stdin=stdin, stdout=stdout, stderr=stderr, env=env)
-    if return_code != 0:
-        print 'The tool returned non-zero.'
+    if return_code != 0 and 'ValidateSamFile' not in args:
+        print 'ERROR! See log files'
+        sys.exit(0)
 
     return return_code
