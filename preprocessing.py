@@ -7,12 +7,9 @@
 #############################################################################
 
 import os
-import shlex
-import config
 import utils
+import config
 
-picard_dirpath = os.path.join(config.LIBS_LOCATION, 'picard')
-gatk_dirpath = os.path.join(config.LIBS_LOCATION, 'gatk')
 ignored_errors_in_bam = ["INVALID_QUALITY_FORMAT","INVALID_FLAG_PROPER_PAIR","INVALID_FLAG_MATE_UNMAPPED",
                          "MISMATCH_FLAG_MATE_UNMAPPED","INVALID_FLAG_MATE_NEG_STRAND","MISMATCH_FLAG_MATE_NEG_STRAND",
                          "INVALID_FLAG_FIRST_OF_PAIR","INVALID_FLAG_SECOND_OF_PAIR","PAIRED_READ_NOT_MARKED_AS_FIRST_OR_SECOND",
@@ -27,82 +24,79 @@ ignored_errors_in_bam = ["INVALID_QUALITY_FORMAT","INVALID_FLAG_PROPER_PAIR","IN
                          "TAG_VALUE_TOO_LARGE","INVALID_INDEX_FILE_POINTER","INVALID_PREDICTED_MEDIAN_INSERT_SIZE","DUPLICATE_PROGRAM_GROUP_ID",
                          "MATE_NOT_FOUND","MATES_ARE_SAME_END","MISMATCH_MATE_CIGAR_STRING","MATE_CIGAR_STRING_INVALID_PRESENCE"]
 
-def gatk_fpath():
-    return os.path.join(gatk_dirpath, 'GenomeAnalysisTK.jar')
-
-def picard_fpath():
-    return os.path.join(picard_dirpath, 'picard.jar')
-
-
 def all_required_binaries_exist(bin_dirpath, binary):
     if not os.path.isfile(os.path.join(bin_dirpath, binary)):
         return False
     return True
 
 
-def process_single_sample(ref_fpath, sampleID, bam_fpath, scratch_dirpath, output_dirpath, is_human, project_id, num_threads):
+def process_single_sample(ref_fpath, sampleID, bam_fpath, scratch_dirpath, output_dirpath, project_id, num_threads):
     log_fpath = os.path.join(output_dirpath, sampleID + '.log')
     final_bam_fpath = os.path.join(output_dirpath, sampleID + '.bam')
 
     replace_rg_fpath = os.path.join(scratch_dirpath, sampleID + '.temp.bam')
-    realignedbam_fpath = os.path.join(scratch_dirpath, sampleID + '.realigned.bam')
-    recaltable_fpath = os.path.join(scratch_dirpath, sampleID + '.table')
-    post_recaltable_fpath = os.path.join(scratch_dirpath, sampleID + '_post.table')
+    bqsr_fpath = os.path.join(scratch_dirpath, sampleID + '.bqsr.bam')
 
-    csv_fpath = os.path.join(output_dirpath, sampleID + '_recalibration_plots.csv')
+    targetintervals_fpath = os.path.join(scratch_dirpath, sampleID + '_realignment_targets.list')
+    validate_log_fpath = os.path.join(output_dirpath, sampleID + '.validate.txt')
+    ignored_errors = ['IGNORE=%s' % error for error in ignored_errors_in_bam]
+    cmd = ['java', '-jar', config.picard_fpath, 'ValidateSamFile', 'INPUT=%s' % bam_fpath, 'OUTPUT=%s' % validate_log_fpath, 'IGNORE_WARNINGS=true',
+           'MAX_OUTPUT=1'] + ignored_errors
+    is_corrupted_file = utils.call_subprocess(cmd, stderr=open(log_fpath, 'a'))
+    if is_corrupted_file:
+        new_bam_fpath = os.path.join(scratch_dirpath, sampleID + '_sort.bam')
+        utils.call_subprocess(['java', '-jar', config.picard_fpath, 'SortSam', 'INPUT=%s' % bam_fpath,
+                               'OUTPUT=%s' % new_bam_fpath, 'SORT_ORDER=coordinate', 'VALIDATION_STRINGENCY=LENIENT',
+                               'CREATE_INDEX=true'], stderr=open(log_fpath, 'a'))
+        utils.call_subprocess(['java', '-jar', config.picard_fpath, 'AddOrReplaceReadGroups', 'INPUT=%s' % new_bam_fpath,
+                              'OUTPUT=%s' % replace_rg_fpath, 'RGPL=illumina', 'RGSM=%s' % sampleID,
+                               'RGLB=lib', 'RGPU=adapter', 'VALIDATION_STRINGENCY=LENIENT',
+                               'CREATE_INDEX=true'], stderr=open(log_fpath, 'a'))
+        bam_fpath = replace_rg_fpath
+    if not os.path.exists(ref_fpath + '.fai'):
+        print 'Indexing reference file...'
+        samtools_fpath = os.path.join(config.samtools_dirpath, 'samtools')
+        utils.call_subprocess([samtools_fpath, 'faidx', ref_fpath], stderr=open(log_fpath, 'a'))
+        ref_index_file = open(ref_fpath + '.fai')
+        config.chr_lengths = {}
+        config.chr_names = []
+        for line in ref_index_file.read().split('\n'):
+            if line:
+                line = line.split()
+                config.chr_names.append(line[0])
+                config.chr_lengths[line[0]] = line[1]
+    print 'Realign indels...'
+    cmd = ['java', '-jar', config.gatk_fpath, '-T', 'RealignerTargetCreator', '-R', ref_fpath, '-nt', num_threads,
+                            '-I', bam_fpath, '-o', targetintervals_fpath]
+    if not config.reduced_workflow:
+        cmd += ['-known', config.known_fpath, '-known', config.tg_indels_fpath]
+    utils.call_subprocess(cmd, stderr=open(log_fpath, 'a'))
+    cmd = ['java', '-jar', config.gatk_fpath, '-T', 'IndelRealigner', '-R', ref_fpath,
+                            '-I', bam_fpath, '-targetIntervals',  targetintervals_fpath, '-o', final_bam_fpath]
+    if not config.reduced_workflow:
+        cmd += ['-known', config.known_fpath, '-known', config.tg_indels_fpath]
+    utils.call_subprocess(cmd, stderr=open(log_fpath, 'a'))
 
-    if is_human:
-        targetintervals_fpath = os.path.join(scratch_dirpath, sampleID + '_realignment_targets.list')
-        known_fpath = os.path.join(config.DIR_HOME, 'genomes', 'gold_indels.vcf')
-        dbsnp_fpath = '/genomes/Homo_sapiens/UCSC/hg19/Annotation/dbsnp_132.hg19.vcf'
-        validate_log_fpath = os.path.join(output_dirpath, sampleID + '.validate.txt')
-        ignored_errors = ['IGNORE=%s' % error for error in ignored_errors_in_bam]
-        ignored_errors = ' '.join(ignored_errors)
-        picard_path = picard_fpath()
-        cmd = ('java -jar {picard_path} ValidateSamFile INPUT={bam_fpath} OUTPUT={validate_log_fpath} IGNORE_WARNINGS=true MAX_OUTPUT=1 '
-               '{ignored_errors}').format(**locals())
-        is_corrupted_file = utils.call_subprocess(shlex.split(cmd), stderr=open(log_fpath, 'a'))
-        if is_corrupted_file:
-            new_bam_fpath = os.path.join(scratch_dirpath, sampleID + '_sort.bam')
-            utils.call_subprocess(['java', '-jar', picard_fpath(), 'SortSam', 'INPUT=%s' % bam_fpath,
-                                   'OUTPUT=%s' % new_bam_fpath, 'SORT_ORDER=coordinate', 'VALIDATION_STRINGENCY=LENIENT',
-                                   'CREATE_INDEX=true'], stderr=open(log_fpath, 'a'))
-            utils.call_subprocess(['java', '-jar', picard_fpath(), 'AddOrReplaceReadGroups', 'INPUT=%s' % new_bam_fpath,
-                               'OUTPUT=%s' % replace_rg_fpath, 'RGPL=illumina', 'RGSM=%s' % sampleID,
-                                   'RGLB=lib', 'RGPU=adapter', 'VALIDATION_STRINGENCY=LENIENT',
-                                   'CREATE_INDEX=true'], stderr=open(log_fpath, 'a'))
-            bam_fpath = replace_rg_fpath
-        print 'Realign indels...'
-        utils.call_subprocess(['java', '-jar', gatk_fpath(), '-T', 'RealignerTargetCreator', '-R', ref_fpath, '-nt', num_threads, 
-                                '-I', bam_fpath, '-known', known_fpath, '-o', targetintervals_fpath], stderr=open(log_fpath, 'a'))
-        utils.call_subprocess(['java', '-jar', gatk_fpath(), '-T', 'IndelRealigner', '-R', ref_fpath,
-                                '-I', bam_fpath, '-targetIntervals',  targetintervals_fpath, '-known', known_fpath,
-                              '-o', realignedbam_fpath], stderr=open(log_fpath, 'a'))
+    if not config.reduced_workflow:
         print 'Recalibrate bases...'
-        utils.call_subprocess(['java', '-jar', gatk_fpath(), '-T', 'BaseRecalibrator', '-R', ref_fpath, '-nct', num_threads, 
-                                '-I', realignedbam_fpath, '-knownSites', dbsnp_fpath, '-knownSites', known_fpath,
-                              '-o', recaltable_fpath], stderr=open(log_fpath, 'a'))
-        utils.call_subprocess(['java', '-jar', gatk_fpath(), '-T', 'BaseRecalibrator', '-R', ref_fpath, '-nct', num_threads, 
-                                '-I', realignedbam_fpath, '-knownSites',  dbsnp_fpath, '-knownSites', known_fpath,
-                              '-BQSR', recaltable_fpath, '-o', post_recaltable_fpath], stderr=open(log_fpath, 'a'))
-        utils.call_subprocess(['java', '-jar', gatk_fpath(), '-T', 'AnalyzeCovariates', '-R', ref_fpath,
-                                '-before', recaltable_fpath, '-after',  post_recaltable_fpath,
-                              '-csv', csv_fpath], stderr=open(log_fpath, 'a'))
-        utils.call_subprocess(['java', '-jar', gatk_fpath(), '-T', 'PrintReads', '-R', ref_fpath, '-nct', num_threads,
-                                '-I', realignedbam_fpath, '-BQSR', recaltable_fpath,
-                              '-o', final_bam_fpath], stderr=open(log_fpath, 'a'))
-    else:
-        final_bam_fpath = bam_fpath
+        recaltable_fpath = os.path.join(scratch_dirpath, sampleID + '.table')
+        utils.call_subprocess(['java', '-jar', config.gatk_fpath, '-T', 'BaseRecalibrator', '-R', ref_fpath, '-nct', num_threads,
+                                '-I', final_bam_fpath, '-knownSites', config.dbsnp_fpath, '-dt', 'ALL_READS', '-dfrac', '0.10 ',
+                               '-o', recaltable_fpath], stderr=open(log_fpath, 'a'))
+        utils.call_subprocess(['java', '-jar', config.gatk_fpath, '-T', 'PrintReads', '-R', ref_fpath, '-nct', num_threads,
+                                '-I', final_bam_fpath, '-BQSR', recaltable_fpath,
+                                '-o', bqsr_fpath], stderr=open(log_fpath, 'a'))
+
     print 'Building BAM index...'
-    utils.call_subprocess(['java', '-jar', picard_fpath(), 'BuildBamIndex', 'INPUT=%s' % final_bam_fpath,
+    utils.call_subprocess(['java', '-jar', config.picard_fpath, 'BuildBamIndex', 'INPUT=%s' % final_bam_fpath, 'VALIDATION_STRINGENCY=LENIENT',
                            'OUTPUT=%s' % final_bam_fpath + '.bai'], stderr=open(log_fpath, 'a'))
     return final_bam_fpath
 
 
-def do(ref_fpath, samples, sampleIDs, scratch_dirpath, output_dirpath, is_human, project_id):
+def do(ref_fpath, samples, sampleIDs, scratch_dirpath, output_dirpath, project_id):
     from libs.joblib import Parallel, delayed
     n_jobs = min(len(samples), config.threads)
     num_threads = min(config.max_gatk_threads, config.threads//n_jobs)
-    final_bam_fpaths = Parallel(n_jobs=n_jobs)(delayed(process_single_sample)(ref_fpath, sampleIDs[i], samples[i], scratch_dirpath, output_dirpath, is_human, project_id, str(num_threads))
+    final_bam_fpaths = Parallel(n_jobs=n_jobs)(delayed(process_single_sample)(ref_fpath, sampleIDs[i], samples[i], scratch_dirpath, output_dirpath, project_id, str(num_threads))
                                                for i in range(len(samples)))
     return final_bam_fpaths
