@@ -75,7 +75,7 @@ def main(args):
         config.reduced_workflow = True
 
     config.threads = 24
-    config.max_memory = 48
+    config.max_memory = 60
 
     # one sample per launch in multi-node mode
     import preprocessing

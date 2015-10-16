@@ -36,7 +36,7 @@ def val_to_str(val):
 
 def process_single_file(ref_fpath, sampleID, bam_fpath, output_dirpath, scratch_dirpath):
     log_fpath = os.path.join(output_dirpath, sampleID + '.log')
-    n_jobs = min(len(chr_names), config.max_gatk_threads)
+    n_jobs = min(len(chr_names), config.threads)
     chunks = []
     for chr in chr_names:
         range_start = 1
@@ -82,7 +82,7 @@ def process_files(ref_fpath, sampleIDs, bam_fpaths, scratch_dirpath, output_dirp
     print 'Calling variants...'
     raw_vcf_fpaths = [process_single_file(ref_fpath, sampleIDs[i], bam_fpaths[i], output_dirpath, scratch_dirpath)
                                                for i in range(len(bam_fpaths))]
-    n_jobs = min(len(raw_vcf_fpaths), config.max_gatk_threads)
+    n_jobs = min(len(raw_vcf_fpaths), config.threads)
     raw_vcf_fpaths = Parallel(n_jobs=n_jobs)(delayed(merge_vcfs)(output_dirpath, sampleIDs[i], raw_vcf_fpaths[i], ref_fpath)
                                                for i in range(len(raw_vcf_fpaths)))
     raw_vcf_fpath = os.path.join(output_dirpath, project_id + '.raw.vcf')
@@ -91,7 +91,7 @@ def process_files(ref_fpath, sampleIDs, bam_fpaths, scratch_dirpath, output_dirp
     variants = (' '.join(variants)).split()
 
     print 'Joint genotyping...'
-    num_threads = str(config.max_gatk_threads)
+    num_threads = str(config.threads)
     if reduced_workflow:
         raw_vcf_fpath = vcf_fpath
 

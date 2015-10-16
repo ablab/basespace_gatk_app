@@ -54,17 +54,14 @@ def process_single_sample(ref_fpath, sampleID, bam_fpath, scratch_dirpath, outpu
                                'CREATE_INDEX=true'], stderr=open(log_fpath, 'a'))
         bam_fpath = replace_rg_fpath
     if not os.path.exists(ref_fpath + '.fai'):
-        print 'Indexing reference file...'
+        print 'Preparing reference file...'
         samtools_fpath = os.path.join(config.samtools_dirpath, 'samtools')
         utils.call_subprocess([samtools_fpath, 'faidx', ref_fpath], stderr=open(log_fpath, 'a'))
-        ref_index_file = open(ref_fpath + '.fai')
-        config.chr_lengths = {}
-        config.chr_names = []
-        for line in ref_index_file.read().split('\n'):
-            if line:
-                line = line.split()
-                config.chr_names.append(line[0])
-                config.chr_lengths[line[0]] = line[1]
+        get_chr_lengths(ref_fpath)
+        ref_fname, _ = os.path.splitext(ref_fpath)
+        utils.call_subprocess(['java', '-jar', config.picard_fpath, 'CreateSequenceDictionary', 'R=%s' % ref_fpath,
+                               'O=%s' % ref_fname + '.dict'], stderr=open(log_fpath, 'a'))
+
     print 'Realign indels...'
     cmd = ['java', '-jar', config.gatk_fpath, '-T', 'RealignerTargetCreator', '-R', ref_fpath, '-nt', num_threads,
                             '-I', bam_fpath, '-o', targetintervals_fpath]
@@ -93,10 +90,20 @@ def process_single_sample(ref_fpath, sampleID, bam_fpath, scratch_dirpath, outpu
     return final_bam_fpath
 
 
+def get_chr_lengths(ref_fpath):
+    ref_index_file = open(ref_fpath + '.fai')
+    config.chr_lengths = {}
+    config.chr_names = []
+    for line in ref_index_file.read().split('\n'):
+        if line:
+            line = line.split()
+            config.chr_names.append(line[0])
+            config.chr_lengths[line[0]] = line[1]
+
 def do(ref_fpath, samples, sampleIDs, scratch_dirpath, output_dirpath, project_id):
     from libs.joblib import Parallel, delayed
     n_jobs = min(len(samples), config.threads)
-    num_threads = min(config.max_gatk_threads, config.threads//n_jobs)
+    num_threads = max(1, config.threads//n_jobs)
     final_bam_fpaths = Parallel(n_jobs=n_jobs)(delayed(process_single_sample)(ref_fpath, sampleIDs[i], samples[i], scratch_dirpath, output_dirpath, project_id, str(num_threads))
                                                for i in range(len(samples)))
     return final_bam_fpaths
