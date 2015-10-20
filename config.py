@@ -12,11 +12,17 @@ import sys
 DIR_HOME = os.path.abspath(os.path.dirname(os.path.realpath(__file__)))
 LIBS_LOCATION = os.path.join(DIR_HOME, 'libs')
 temp_output_dir = os.path.join(DIR_HOME, 'output')
-threads = 4
-gatk_memory = 2
+max_threads = 4
+max_single_gatk_mem = 2
 max_memory = 8
 basespace_output_dir = ''
 reduced_workflow = True
+
+low_emit = False
+stand_call_conf = '30'
+stand_emit_conf = '30'
+low_call_conf = '25'
+low_emit_conf = '10'
 
 # for BaseSpace
 UROOT = "/data/output/appresults/"
@@ -30,7 +36,6 @@ gatk_fpath = os.path.join(gatk_dirpath, 'GenomeAnalysisTK.jar')
 picard_fpath = os.path.join(picard_dirpath, 'picard.jar')
 bgzip_fpath = os.path.join(LIBS_LOCATION, 'misc', 'bgzip')
 tabix_fpath = os.path.join(LIBS_LOCATION, 'misc', 'tabix')
-
 
 known_fpath = os.path.join(DIR_HOME, 'genomes', 'gold_indels.vcf')
 dbsnp_fpath = '/genomes/Homo_sapiens/UCSC/hg19/Annotation/dbsnp_132.hg19.vcf'

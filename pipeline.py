@@ -16,10 +16,10 @@ references = ['/genomes/Homo_sapiens/UCSC/hg19/Sequence/WholeGenomeFasta/genome.
               '/genomes/Homo_sapiens/Ensembl/GRCh37/Sequence/WholeGenomeFasta/genome.fa']
 
 def main(args):
-    jsonfile = open('/data/input/AppSession.json')
-    jsonObject = json.load(jsonfile)
+    json_file = open('/data/input/AppSession.json')
+    json_object = json.load(json_file)
 
-    sampleIDs = []
+    sample_ids = []
     sample_names = []
     samples = []
 
@@ -33,7 +33,7 @@ def main(args):
         shutil.rmtree(config.temp_output_dir)
     os.makedirs(config.temp_output_dir)
     # parsing "Properties"
-    for entry in jsonObject["Properties"]["Items"]:
+    for entry in json_object["Properties"]["Items"]:
         if "Name" not in entry:
             continue
         if entry["Name"] == "Input.project-id":
@@ -46,21 +46,21 @@ def main(args):
         # sample properties
         elif entry['Name'] == 'Input.AppResults':
             for sample in range(len(entry['Items'])):
-                sampleID = entry['Items'][sample]['Id']
-                sampleDir = '/data/input/appresults/%s/' % sampleID
-                for root, dirs, files in os.walk(str(sampleDir)):
+                sample_id = entry['Items'][sample]['Id']
+                sample_dir = '/data/input/appresults/%s/' % sample_id
+                for root, dirs, files in os.walk(str(sample_dir)):
                     for name in files:
                         if name.endswith('.bam'):
                             samples.append(os.path.join(root, name))
-                            sampleIDs.append(entry['Items'][sample]['Id'])
+                            sample_ids.append(sample_id)
                             sample_names.append(entry['Items'][sample]['Name'])
         elif entry['Name'] == 'Input.select-ref':
             ref_num = int(entry['Content'])
         elif entry['Name'] == 'Input.Files':
             for sample in range(len(entry['Items'])):
-                fileID = entry['Items'][sample]['ParentAppResult']['Id']
-                refDir = '/data/input/appresults/%s/' % fileID
-                for root, dirs, files in os.walk(str(refDir)):
+                file_id = entry['Items'][sample]['ParentAppResult']['Id']
+                ref_dir = '/data/input/appresults/%s/' % file_id
+                for root, dirs, files in os.walk(str(ref_dir)):
                     for name in files:
                         if name.endswith('.fasta') or name.endswith('.fa') or name.endswith('.fna'):
                             raw_ref_fpath = os.path.join(root, name)
@@ -68,20 +68,22 @@ def main(args):
                             shutil.copy(raw_ref_fpath, ref_fpath)
         elif entry['Name'] == 'Input.checkbox-pipeline':
             config.reduced_workflow = False
+        elif entry['Name'] == 'Input.checkbox-lowemit':
+            config.low_emit = True
 
     if ref_num == 0 or not ref_fpath:
         ref_fpath = references[0]
     else:
         config.reduced_workflow = True
 
-    config.threads = 24
+    config.max_threads = 24
     config.max_memory = 60
 
     # one sample per launch in multi-node mode
     import preprocessing
-    bam_fpaths = preprocessing.do(ref_fpath, samples, sampleIDs, config.temp_output_dir, config.basespace_output_dir, project_id)
+    bam_fpaths = preprocessing.do(ref_fpath, samples, sample_ids, config.temp_output_dir, config.basespace_output_dir, project_id)
     import variant_calling
-    variant_calling.do(ref_fpath, sampleIDs, bam_fpaths, config.temp_output_dir, config.basespace_output_dir, project_id, samples, sample_names)
+    variant_calling.do(ref_fpath, sample_ids, bam_fpaths, config.temp_output_dir, config.basespace_output_dir, project_id, samples, sample_names)
     return
 
 if __name__ == '__main__':

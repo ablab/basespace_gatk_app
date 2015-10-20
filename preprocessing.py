@@ -30,26 +30,26 @@ def all_required_binaries_exist(bin_dirpath, binary):
     return True
 
 
-def process_single_sample(ref_fpath, sampleID, bam_fpath, scratch_dirpath, output_dirpath, project_id, num_threads):
-    log_fpath = os.path.join(output_dirpath, sampleID + '.log')
-    final_bam_fpath = os.path.join(output_dirpath, sampleID + '.bam')
+def process_single_sample(ref_fpath, sample_id, bam_fpath, scratch_dirpath, output_dirpath, project_id, num_threads):
+    log_fpath = os.path.join(output_dirpath, sample_id + '.log')
+    final_bam_fpath = os.path.join(output_dirpath, sample_id + '.bam')
 
-    replace_rg_fpath = os.path.join(scratch_dirpath, sampleID + '.temp.bam')
-    bqsr_fpath = os.path.join(scratch_dirpath, sampleID + '.bqsr.bam')
+    replace_rg_fpath = os.path.join(scratch_dirpath, sample_id + '.temp.bam')
+    bqsr_fpath = os.path.join(scratch_dirpath, sample_id + '.bqsr.bam')
 
-    targetintervals_fpath = os.path.join(scratch_dirpath, sampleID + '_realignment_targets.list')
-    validate_log_fpath = os.path.join(output_dirpath, sampleID + '.validate.txt')
+    targetintervals_fpath = os.path.join(scratch_dirpath, sample_id + '_realignment_targets.list')
+    validate_log_fpath = os.path.join(output_dirpath, sample_id + '.validate.txt')
     ignored_errors = ['IGNORE=%s' % error for error in ignored_errors_in_bam]
     cmd = ['java', '-jar', config.picard_fpath, 'ValidateSamFile', 'INPUT=%s' % bam_fpath, 'OUTPUT=%s' % validate_log_fpath, 'IGNORE_WARNINGS=true',
            'MAX_OUTPUT=1'] + ignored_errors
     is_corrupted_file = utils.call_subprocess(cmd, stderr=open(log_fpath, 'a'))
     if is_corrupted_file:
-        new_bam_fpath = os.path.join(scratch_dirpath, sampleID + '_sort.bam')
+        new_bam_fpath = os.path.join(scratch_dirpath, sample_id + '_sort.bam')
         utils.call_subprocess(['java', '-jar', config.picard_fpath, 'SortSam', 'INPUT=%s' % bam_fpath,
                                'OUTPUT=%s' % new_bam_fpath, 'SORT_ORDER=coordinate', 'VALIDATION_STRINGENCY=LENIENT',
                                'CREATE_INDEX=true'], stderr=open(log_fpath, 'a'))
         utils.call_subprocess(['java', '-jar', config.picard_fpath, 'AddOrReplaceReadGroups', 'INPUT=%s' % new_bam_fpath,
-                              'OUTPUT=%s' % replace_rg_fpath, 'RGPL=illumina', 'RGSM=%s' % sampleID,
+                              'OUTPUT=%s' % replace_rg_fpath, 'RGPL=illumina', 'RGSM=%s' % sample_id,
                                'RGLB=lib', 'RGPU=adapter', 'VALIDATION_STRINGENCY=LENIENT',
                                'CREATE_INDEX=true'], stderr=open(log_fpath, 'a'))
         bam_fpath = replace_rg_fpath
@@ -76,7 +76,7 @@ def process_single_sample(ref_fpath, sampleID, bam_fpath, scratch_dirpath, outpu
 
     if not config.reduced_workflow:
         print 'Recalibrate bases...'
-        recaltable_fpath = os.path.join(scratch_dirpath, sampleID + '.table')
+        recaltable_fpath = os.path.join(scratch_dirpath, sample_id + '.table')
         utils.call_subprocess(['java', '-jar', config.gatk_fpath, '-T', 'BaseRecalibrator', '-R', ref_fpath, '-nct', num_threads,
                                 '-I', final_bam_fpath, '-knownSites', config.dbsnp_fpath, '-dt', 'ALL_READS', '-dfrac', '0.10 ',
                                '-o', recaltable_fpath], stderr=open(log_fpath, 'a'))
@@ -100,10 +100,10 @@ def get_chr_lengths(ref_fpath):
             config.chr_names.append(line[0])
             config.chr_lengths[line[0]] = line[1]
 
-def do(ref_fpath, samples, sampleIDs, scratch_dirpath, output_dirpath, project_id):
+def do(ref_fpath, samples, sample_ids, scratch_dirpath, output_dirpath, project_id):
     from libs.joblib import Parallel, delayed
-    n_jobs = min(len(samples), config.threads)
-    num_threads = max(1, config.threads//n_jobs)
-    final_bam_fpaths = Parallel(n_jobs=n_jobs)(delayed(process_single_sample)(ref_fpath, sampleIDs[i], samples[i], scratch_dirpath, output_dirpath, project_id, str(num_threads))
+    n_jobs = min(len(samples), config.max_threads)
+    num_threads = max(1, config.max_threads//n_jobs)
+    final_bam_fpaths = Parallel(n_jobs=n_jobs)(delayed(process_single_sample)(ref_fpath, sample_ids[i], samples[i], scratch_dirpath, output_dirpath, project_id, str(num_threads))
                                                for i in range(len(samples)))
     return final_bam_fpaths

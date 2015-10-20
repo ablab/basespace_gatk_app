@@ -26,7 +26,7 @@ indel_col_values = ["nInsertions","nDeletions","indelRatePerBp","insertionDeleti
 indel_col_names = ["Insertions Count","Deletions Count","Indel Rate Per Bp","Insertion/Deletion Ratio"]
 tstv_col_values = ["nTi","nTv","tiTvRatio"]
 tstv_col_names = ["Transitions Count","Transversions Count","Ts/Tv Ratio"]
-chunkSize = 100000000
+chunk_size = 100000000
 
 def val_to_str(val):
     if val is None:
@@ -36,16 +36,16 @@ def val_to_str(val):
 
 def process_single_file(ref_fpath, sampleID, bam_fpath, output_dirpath, scratch_dirpath):
     log_fpath = os.path.join(output_dirpath, sampleID + '.log')
-    n_jobs = min(len(chr_names), config.threads)
+    n_jobs = min(len(chr_names), config.max_threads)
     chunks = []
     for chr in chr_names:
         range_start = 1
-        range_end = min(chunkSize, chr_lengths[chr])
+        range_end = min(chunk_size, chr_lengths[chr])
         part = 1
         while range_start <= chr_lengths[chr]:
             chunks.append((chr, part, range_start, range_end))
             range_start = range_end + 1
-            range_end += chunkSize
+            range_end += chunk_size
             range_end = min(range_end, chr_lengths[chr])
             part += 1
 
@@ -64,12 +64,11 @@ def merge_vcfs(output_dirpath, sampleID, raw_vcf_fpaths, ref_fpath):
     return merge_vcf_fpath
 
 def process_single_chunk(ref_fpath, sampleID, bam_fpath, output_dirpath, log_fpath, chr, part, start, end):
-    memGb = config.gatk_memory
+    mem_gb = config.max_single_gatk_mem
     raw_g_vcf_fpath = os.path.join(output_dirpath, sampleID + chr + '.' + str(part) + '.g.vcf')
     chr_chunk = chr + ':' + str(start) + '-' + str(end)
-    cmd = ['java', '-Xmx%sg' % str(memGb), '-jar', gatk_fpath, '-T', 'HaplotypeCaller', '-R', ref_fpath, '-L', chr_chunk,
-                            '-I', bam_fpath, '-stand_emit_conf', '10',
-                           '-stand_call_conf', '25', '-ERC', 'GVCF', '-variant_index_type', 'LINEAR',
+    cmd = ['java', '-Xmx%sg' % str(mem_gb), '-jar', gatk_fpath, '-T', 'HaplotypeCaller', '-R', ref_fpath, '-L', chr_chunk,
+                            '-I', bam_fpath, '-ERC', 'GVCF', '-variant_index_type', 'LINEAR',
                            '-variant_index_parameter', '128000', '-o', raw_g_vcf_fpath]
     if not reduced_workflow:
         recaltable_fpath = os.path.join(output_dirpath, sampleID + '.table')
@@ -77,13 +76,13 @@ def process_single_chunk(ref_fpath, sampleID, bam_fpath, output_dirpath, log_fpa
     utils.call_subprocess(cmd, stderr=open(log_fpath, 'a'))
     return raw_g_vcf_fpath
 
-def process_files(ref_fpath, sampleIDs, bam_fpaths, scratch_dirpath, output_dirpath, project_id, sample_files, sample_names):
+def process_files(ref_fpath, sample_ids, bam_fpaths, scratch_dirpath, output_dirpath, project_id, sample_files, sample_names):
     log_fpath = os.path.join(output_dirpath, project_id + '.log')
     print 'Calling variants...'
-    raw_vcf_fpaths = [process_single_file(ref_fpath, sampleIDs[i], bam_fpaths[i], output_dirpath, scratch_dirpath)
+    raw_vcf_fpaths = [process_single_file(ref_fpath, sample_ids[i], bam_fpaths[i], output_dirpath, scratch_dirpath)
                                                for i in range(len(bam_fpaths))]
-    n_jobs = min(len(raw_vcf_fpaths), config.threads)
-    raw_vcf_fpaths = Parallel(n_jobs=n_jobs)(delayed(merge_vcfs)(output_dirpath, sampleIDs[i], raw_vcf_fpaths[i], ref_fpath)
+    n_jobs = min(len(raw_vcf_fpaths), config.max_threads)
+    raw_vcf_fpaths = Parallel(n_jobs=n_jobs)(delayed(merge_vcfs)(output_dirpath, sample_ids[i], raw_vcf_fpaths[i], ref_fpath)
                                                for i in range(len(raw_vcf_fpaths)))
     raw_vcf_fpath = os.path.join(output_dirpath, project_id + '.raw.vcf')
     vcf_fpath = os.path.join(output_dirpath, project_id + '.vcf')
@@ -91,16 +90,18 @@ def process_files(ref_fpath, sampleIDs, bam_fpaths, scratch_dirpath, output_dirp
     variants = (' '.join(variants)).split()
 
     print 'Joint genotyping...'
-    num_threads = str(config.threads)
+    num_threads = str(config.max_threads)
     if reduced_workflow:
         raw_vcf_fpath = vcf_fpath
 
     cmd = ['java', '-jar', gatk_fpath, '-T', 'GenotypeGVCFs', '-R', ref_fpath, '-nt', num_threads,
-           '-o', raw_vcf_fpath, '-stand_call_conf', '25', '-stand_emit_conf', '10']
+           '-o', raw_vcf_fpath, '-stand_call_conf', config.low_call_conf if config.low_emit else config.stand_call_conf,
+           '-stand_emit_conf', config.low_emit_conf if config.low_emit else config.stand_emit_conf]
+
     utils.call_subprocess(cmd + variants, stderr=open(log_fpath, 'a'))
     if not reduced_workflow:
         print 'Filtering variants...'
-        memGb = config.max_memory
+        mem_gb = str(config.max_memory)
         recal_fpath = os.path.join(scratch_dirpath, project_id + '_SNP.recal')
         tranches_fpath = os.path.join(scratch_dirpath, project_id + '_SNP.tranches')
 
@@ -109,7 +110,7 @@ def process_files(ref_fpath, sampleIDs, bam_fpaths, scratch_dirpath, output_dirp
         tranches_indel_fpath = os.path.join(scratch_dirpath, project_id + '_INDEL.tranches')
         # variant filtering
         utils.call_subprocess(
-            ['java', '-Xmx%sg' % str(memGb),'-jar', gatk_fpath, '-T', 'VariantRecalibrator', '-R', ref_fpath, '-input', raw_vcf_fpath,
+            ['java', '-Xmx%sg' % mem_gb,'-jar', gatk_fpath, '-T', 'VariantRecalibrator', '-R', ref_fpath, '-input', raw_vcf_fpath,
                '-resource:hapmap,known=false,training=true,truth=true,prior=15.0', hapmap_fpath,
                '-resource:omni,known=false,training=true,truth=true,prior=12.0', omni_fpath,
                '-resource:1000G,known=false,training=true,truth=false,prior=10.0', tg_indels_fpath,
@@ -118,11 +119,11 @@ def process_files(ref_fpath, sampleIDs, bam_fpaths, scratch_dirpath, output_dirp
                '-mode', 'SNP', '-recalFile', recal_fpath, '-tranchesFile', tranches_fpath, '-nt', num_threads], stderr=open(log_fpath, 'a'))
 
         utils.call_subprocess(
-            ['java', '-Xmx%sg' % str(memGb), '-jar', gatk_fpath, '-T', 'ApplyRecalibration', '-R', ref_fpath, '-input', raw_vcf_fpath, '-mode', 'SNP',
+            ['java', '-Xmx%sg' % mem_gb, '-jar', gatk_fpath, '-T', 'ApplyRecalibration', '-R', ref_fpath, '-input', raw_vcf_fpath, '-mode', 'SNP',
          '--ts_filter_level', '99.5', '-recalFile', recal_fpath, '-tranchesFile', tranches_fpath, '-o', raw_indels_vcf_fpath], stderr=open(log_fpath, 'a'))
 
         utils.call_subprocess(
-            ['java', '-Xmx%sg' % str(memGb), '-jar', gatk_fpath, '-T', 'VariantRecalibrator', '-R', ref_fpath, '-input', raw_indels_vcf_fpath,
+            ['java', '-Xmx%sg' % mem_gb, '-jar', gatk_fpath, '-T', 'VariantRecalibrator', '-R', ref_fpath, '-input', raw_indels_vcf_fpath,
                '-resource:mills,known=true,training=true,truth=true,prior=12.0', mills_fpath,
                '-resource:dbsnp,known=true,training=false,truth=false,prior=2.0', dbsnp_fpath,
                '-an', 'DP', '-an', 'QD', '-an', 'FS', '-an', 'MQRankSum', '-an', 'ReadPosRankSum',
@@ -130,8 +131,8 @@ def process_files(ref_fpath, sampleIDs, bam_fpaths, scratch_dirpath, output_dirp
              '-tranchesFile', tranches_indel_fpath, '-nt', num_threads], stderr=open(log_fpath, 'a'))
 
         utils.call_subprocess(
-            ['java', '-Xmx%sg' % str(memGb), '-jar', gatk_fpath, '-T', 'ApplyRecalibration', '-R', ref_fpath, '-input', raw_indels_vcf_fpath,
-             '-mode', 'INDEL', '--ts_filter_level', '99.5', '-recalFile', recal_indel_fpath, '-tranchesFile', tranches_indel_fpath,
+            ['java', '-Xmx%sg' % mem_gb, '-jar', gatk_fpath, '-T', 'ApplyRecalibration', '-R', ref_fpath, '-input', raw_indels_vcf_fpath,
+             '-mode', 'INDEL', '--ts_filter_level', '99.0', '-recalFile', recal_indel_fpath, '-tranchesFile', tranches_indel_fpath,
              '-o', vcf_fpath], stderr=open(log_fpath, 'a'))
 
     report_vars_fpath = os.path.join(scratch_dirpath, project_id + '.var.txt')
@@ -142,13 +143,13 @@ def process_files(ref_fpath, sampleIDs, bam_fpaths, scratch_dirpath, output_dirp
     utils.call_subprocess(['java', '-jar', gatk_fpath, '-T', 'VariantEval', '-R', ref_fpath, '-eval', vcf_fpath,
                '-noST', '-noEV', '-EV', 'TiTvVariantEvaluator', '-ST', 'Sample', '-o', report_tstv_fpath], stderr=open(log_fpath, 'a'))
 
-    printReport(report_vars_fpath, report_tstv_fpath, sample_names, sampleIDs, sample_files, output_dirpath)
+    printReport(report_vars_fpath, report_tstv_fpath, sample_names, sample_ids, sample_files, output_dirpath)
 
     utils.call_subprocess([bgzip_fpath, vcf_fpath], stderr=open(log_fpath, 'a'))
     utils.call_subprocess([tabix_fpath, '-p', 'vcf', vcf_fpath + '.gz'], stderr=open(log_fpath, 'a'))
     return vcf_fpath
 
-def printReport(report_vars_fpath, report_tstv_fpath, sample_names, sample_IDs, sample_files, output_dirpath):
+def printReport(report_vars_fpath, report_tstv_fpath, sample_names, sample_ids, sample_files, output_dirpath):
     all_values = {}
     samples = []
     if not os.path.exists(report_vars_fpath) or not os.path.exists(report_tstv_fpath):
@@ -160,7 +161,7 @@ def printReport(report_vars_fpath, report_tstv_fpath, sample_names, sample_IDs, 
         if line[0] == "#":
             continue
         line = line.split()
-        if line[3] in sample_names or line[3] in sample_IDs:
+        if line[3] in sample_names or line[3] in sample_ids:
             if line[3] not in all_values:
                 samples.append(line[3])
                 all_values[line[3]] = []
@@ -172,7 +173,7 @@ def printReport(report_vars_fpath, report_tstv_fpath, sample_names, sample_IDs, 
         if line[0] == "#":
             continue
         line = line.split()
-        if line[3] in sample_names or line[3] in sample_IDs:
+        if line[3] in sample_names or line[3] in sample_ids:
             if line[3] not in all_values:
                 samples.append(line[3])
                 all_values[line[3]] = []
@@ -202,6 +203,6 @@ def saveTsv(tsv_fpath, col_names, row_values, sample_names=None):
             print >>tsv_file, '\t'.join(map(val_to_str, row))
     tsv_file.close()
 
-def do(ref_fpath, sampleIDs, bam_fpaths, scratch_dirpath, output_dirpath, project_id, sample_files, sample_names):
-    vcf_fpath = process_files(ref_fpath, sampleIDs, bam_fpaths, scratch_dirpath, output_dirpath, project_id, sample_files, sample_names)
+def do(ref_fpath, sample_ids, bam_fpaths, scratch_dirpath, output_dirpath, project_id, sample_files, sample_names):
+    vcf_fpath = process_files(ref_fpath, sample_ids, bam_fpaths, scratch_dirpath, output_dirpath, project_id, sample_files, sample_names)
     return vcf_fpath
