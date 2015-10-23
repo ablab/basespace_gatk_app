@@ -32,24 +32,28 @@ def all_required_binaries_exist(bin_dirpath, binary):
 
 def process_single_sample(ref_fpath, sample_id, bam_fpath, scratch_dirpath, output_dirpath, project_id, num_threads):
     log_fpath = os.path.join(output_dirpath, sample_id + '.log')
-    final_bam_fpath = os.path.join(output_dirpath, sample_id + '.bam')
+    final_bam_fpath = os.path.join(scratch_dirpath, sample_id + '.bam')
 
     replace_rg_fpath = os.path.join(scratch_dirpath, sample_id + '.temp.bam')
     bqsr_fpath = os.path.join(scratch_dirpath, sample_id + '.bqsr.bam')
 
     targetintervals_fpath = os.path.join(scratch_dirpath, sample_id + '_realignment_targets.list')
-    validate_log_fpath = os.path.join(output_dirpath, sample_id + '.validate.txt')
+    validate_log_fpath = os.path.join(scratch_dirpath, sample_id + '.validate.txt')
+
+    mem_gb = str(config.max_memory)
     ignored_errors = ['IGNORE=%s' % error for error in ignored_errors_in_bam]
-    cmd = ['java', '-jar', config.picard_fpath, 'ValidateSamFile', 'INPUT=%s' % bam_fpath, 'OUTPUT=%s' % validate_log_fpath, 'IGNORE_WARNINGS=true',
+    cmd = ['java', '-Xmx%sg' % mem_gb, '-jar', config.picard_fpath, 'ValidateSamFile', 'INPUT=%s' % bam_fpath, 'OUTPUT=%s' % validate_log_fpath, 'IGNORE_WARNINGS=true',
            'MAX_OUTPUT=1'] + ignored_errors
     is_corrupted_file = utils.call_subprocess(cmd, stderr=open(log_fpath, 'a'))
     if is_corrupted_file:
         new_bam_fpath = os.path.join(scratch_dirpath, sample_id + '_sort.bam')
-        utils.call_subprocess(['java', '-jar', config.picard_fpath, 'SortSam', 'INPUT=%s' % bam_fpath,
-                               'OUTPUT=%s' % new_bam_fpath, 'SORT_ORDER=coordinate', 'VALIDATION_STRINGENCY=LENIENT',
+        utils.call_subprocess(['java', '-Xmx%sg' % mem_gb, '-jar', config.picard_fpath, 'SortSam', 'INPUT=%s' % bam_fpath,
+                               'OUTPUT=%s' % new_bam_fpath, 'TMP_DIR=%s' % config.picard_tmp_dirpath,
+                               'SORT_ORDER=coordinate', 'VALIDATION_STRINGENCY=LENIENT',
                                'CREATE_INDEX=true'], stderr=open(log_fpath, 'a'))
-        utils.call_subprocess(['java', '-jar', config.picard_fpath, 'AddOrReplaceReadGroups', 'INPUT=%s' % new_bam_fpath,
-                              'OUTPUT=%s' % replace_rg_fpath, 'RGPL=illumina', 'RGSM=%s' % sample_id,
+        utils.call_subprocess(['java', '-Xmx%sg' % mem_gb, '-jar', config.picard_fpath, 'AddOrReplaceReadGroups', 'INPUT=%s' % new_bam_fpath,
+                               'OUTPUT=%s' % replace_rg_fpath, 'TMP_DIR=%s' % config.picard_tmp_dirpath,
+                               'RGPL=illumina', 'RGSM=%s' % sample_id,
                                'RGLB=lib', 'RGPU=adapter', 'VALIDATION_STRINGENCY=LENIENT',
                                'CREATE_INDEX=true'], stderr=open(log_fpath, 'a'))
         bam_fpath = replace_rg_fpath
@@ -63,12 +67,12 @@ def process_single_sample(ref_fpath, sample_id, bam_fpath, scratch_dirpath, outp
                                'O=%s' % ref_fname + '.dict'], stderr=open(log_fpath, 'a'))
 
     print 'Realign indels...'
-    cmd = ['java', '-jar', config.gatk_fpath, '-T', 'RealignerTargetCreator', '-R', ref_fpath, '-nt', num_threads,
+    cmd = ['java', '-Xmx%sg' % mem_gb, '-jar', config.gatk_fpath, '-T', 'RealignerTargetCreator', '-R', ref_fpath, '-nt', num_threads,
                             '-I', bam_fpath, '-o', targetintervals_fpath]
     if not config.reduced_workflow:
         cmd += ['-known', config.known_fpath, '-known', config.tg_indels_fpath]
     utils.call_subprocess(cmd, stderr=open(log_fpath, 'a'))
-    cmd = ['java', '-jar', config.gatk_fpath, '-T', 'IndelRealigner', '-R', ref_fpath,
+    cmd = ['java', '-Xmx%sg' % mem_gb, '-jar', config.gatk_fpath, '-T', 'IndelRealigner', '-R', ref_fpath,
                             '-I', bam_fpath, '-targetIntervals',  targetintervals_fpath, '-o', final_bam_fpath]
     if not config.reduced_workflow:
         cmd += ['-known', config.known_fpath, '-known', config.tg_indels_fpath]
@@ -77,16 +81,17 @@ def process_single_sample(ref_fpath, sample_id, bam_fpath, scratch_dirpath, outp
     if not config.reduced_workflow:
         print 'Recalibrate bases...'
         recaltable_fpath = os.path.join(scratch_dirpath, sample_id + '.table')
-        utils.call_subprocess(['java', '-jar', config.gatk_fpath, '-T', 'BaseRecalibrator', '-R', ref_fpath, '-nct', num_threads,
+        utils.call_subprocess(['java', '-Xmx%sg' % mem_gb, '-jar', config.gatk_fpath, '-T', 'BaseRecalibrator', '-R', ref_fpath, '-nct', num_threads,
                                 '-I', final_bam_fpath, '-knownSites', config.dbsnp_fpath, '-dt', 'ALL_READS', '-dfrac', '0.10 ',
-                               '-o', recaltable_fpath], stderr=open(log_fpath, 'a'))
-        utils.call_subprocess(['java', '-jar', config.gatk_fpath, '-T', 'PrintReads', '-R', ref_fpath, '-nct', num_threads,
+                                '-o', recaltable_fpath], stderr=open(log_fpath, 'a'))
+        utils.call_subprocess(['java', '-Xmx%sg' % mem_gb, '-jar', config.gatk_fpath, '-T', 'PrintReads', '-R', ref_fpath, '-nct', num_threads,
                                 '-I', final_bam_fpath, '-BQSR', recaltable_fpath,
                                 '-o', bqsr_fpath], stderr=open(log_fpath, 'a'))
 
     print 'Building BAM index...'
-    utils.call_subprocess(['java', '-jar', config.picard_fpath, 'BuildBamIndex', 'INPUT=%s' % final_bam_fpath, 'VALIDATION_STRINGENCY=LENIENT',
-                           'OUTPUT=%s' % final_bam_fpath + '.bai'], stderr=open(log_fpath, 'a'))
+    utils.call_subprocess(['java', '-Xmx%sg' % mem_gb, '-jar', config.picard_fpath, 'BuildBamIndex', 'INPUT=%s' % final_bam_fpath,
+                           'OUTPUT=%s' % final_bam_fpath + '.bai', 'TMP_DIR=%s' % config.picard_tmp_dirpath,
+                           'VALIDATION_STRINGENCY=LENIENT'], stderr=open(log_fpath, 'a'))
     return final_bam_fpath
 
 

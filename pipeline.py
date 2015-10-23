@@ -27,7 +27,7 @@ def main(args):
     project_id = 0
     ref_fpath = None
 
-    config.temp_output_dir = config.OUT_ROOT
+    config.temp_output_dir = config.SCRATCH_DIR
 
     if os.path.isdir(config.temp_output_dir):
         shutil.rmtree(config.temp_output_dir)
@@ -66,7 +66,7 @@ def main(args):
                             raw_ref_fpath = os.path.join(root, name)
                             ref_fpath = os.path.join(config.temp_output_dir, name)
                             shutil.copy(raw_ref_fpath, ref_fpath)
-        elif entry['Name'] == 'Input.checkbox-pipeline':
+        elif entry['Name'] == 'Input.checkbox-full':
             config.reduced_workflow = False
         elif entry['Name'] == 'Input.checkbox-lowemit':
             config.low_emit = True

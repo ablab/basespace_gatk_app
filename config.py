@@ -27,10 +27,11 @@ low_emit_conf = '10'
 # for BaseSpace
 UROOT = "/data/output/appresults/"
 DROOT = "/data/input/samples/"
-OUT_ROOT = "/data/scratch/output/"
+SCRATCH_DIR = "/data/scratch/"
 
-gatk_dirpath = os.path.join(LIBS_LOCATION, 'gatk')
+gatk_dirpath = os.path.join(LIBS_LOCATION, 'GATK')
 picard_dirpath = os.path.join(LIBS_LOCATION, 'picard')
+picard_tmp_dirpath = os.path.join(SCRATCH_DIR, 'tmp')
 samtools_dirpath = os.path.join(LIBS_LOCATION, 'samtools')
 gatk_fpath = os.path.join(gatk_dirpath, 'GenomeAnalysisTK.jar')
 picard_fpath = os.path.join(picard_dirpath, 'picard.jar')
