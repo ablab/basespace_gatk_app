@@ -36,7 +36,6 @@ def val_to_str(val):
 
 def process_single_file(ref_fpath, sampleID, bam_fpath, output_dirpath, scratch_dirpath):
     log_fpath = os.path.join(output_dirpath, sampleID + '.log')
-    n_jobs = min(len(chr_names), config.max_threads)
     chunks = []
     for chr in chr_names:
         range_start = 1
@@ -49,6 +48,7 @@ def process_single_file(ref_fpath, sampleID, bam_fpath, output_dirpath, scratch_
             range_end = min(range_end, chr_lengths[chr])
             part += 1
 
+    n_jobs = min(len(chunks), config.max_gatk_threads)
     raw_vcf_fpaths = Parallel(n_jobs=n_jobs)(delayed(process_single_chunk)(ref_fpath, sampleID, bam_fpath, scratch_dirpath,
                                                 log_fpath, chr, part, start, end) for (chr, part, start, end) in chunks)
     return raw_vcf_fpaths
@@ -73,7 +73,7 @@ def merge_vcfs(output_dirpath, sampleID, raw_vcf_fpaths, ref_fpath):
     log_fpath = os.path.join(output_dirpath, sampleID + '.log')
     variants = '-V ' + ' -V '.join(raw_vcf_fpaths)
     variants = variants.split()
-    cmd = ['java', '-cp', gatk_fpath, 'org.broadinstitute.gatk.tools.CatVariants', '-R', ref_fpath, '-assumeSorted',
+    cmd = ['java', '-cp', gatk_fpath, 'org.broadinstitute.gatk.tools.', '-R', ref_fpath, '-assumeSorted',
                '-out', merge_vcf_fpath]
     utils.call_subprocess(cmd + variants, stderr=open(log_fpath, 'a'))
     return merge_vcf_fpath
@@ -168,7 +168,7 @@ def printReport(report_vars_fpath, report_tstv_fpath, sample_names, sample_ids, 
         if line[0] == "#":
             continue
         line = line.split()
-        if line[3] in sample_names or line[3] in sample_ids:
+        if line[3].strip() != 'Sample' and line[3].strip() != 'all' and line[3].strip() != 'none':
             if line[3] not in all_values:
                 samples.append(line[3])
                 all_values[line[3]] = []
@@ -180,12 +180,12 @@ def printReport(report_vars_fpath, report_tstv_fpath, sample_names, sample_ids, 
         if line[0] == "#":
             continue
         line = line.split()
-        if line[3] in sample_names or line[3] in sample_ids:
+        if line[3].strip() != 'Sample' and line[3].strip() != 'all' and line[3].strip() != 'none':
             if line[3] not in all_values:
                 samples.append(line[3])
                 all_values[line[3]] = []
             all_values[line[3]].extend(zip(col_names_titv, line))
-    report_values = [[i+1, samples[i], sample_files[i]] for i in range(len(sample_names))]
+    report_values = [[i+1, samples[i], sample_files[i]] for i in range(len(samples))]
     snp_values = [[all_values[id][row_num][1] for row_num in range(len(all_values[samples[0]])) if all_values[samples[0]][row_num][0] in snp_col_values] for id in samples]
     indel_values = [[all_values[id][row_num][1] for row_num in range(len(all_values[samples[0]])) if all_values[samples[0]][row_num][0] in indel_col_values] for id in samples]
     tstv_values = [[all_values[id][row_num][1] for row_num in range(len(all_values[samples[0]])) if all_values[samples[0]][row_num][0] in tstv_col_values] for id in samples]

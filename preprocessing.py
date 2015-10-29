@@ -30,7 +30,7 @@ def all_required_binaries_exist(bin_dirpath, binary):
     return True
 
 
-def process_single_sample(ref_fpath, sample_id, bam_fpath, scratch_dirpath, output_dirpath, project_id, num_threads):
+def process_single_sample(ref_fpath, sample_id, bam_fpath, scratch_dirpath, output_dirpath, num_threads):
     log_fpath = os.path.join(output_dirpath, sample_id + '.log')
     final_bam_fpath = os.path.join(scratch_dirpath, sample_id + '.bam')
 
@@ -61,21 +61,20 @@ def process_single_sample(ref_fpath, sample_id, bam_fpath, scratch_dirpath, outp
         print 'Preparing reference file...'
         samtools_fpath = os.path.join(config.samtools_dirpath, 'samtools')
         utils.call_subprocess([samtools_fpath, 'faidx', ref_fpath], stderr=open(log_fpath, 'a'))
-        get_chr_lengths(ref_fpath)
         ref_fname, _ = os.path.splitext(ref_fpath)
         utils.call_subprocess(['java', '-jar', config.picard_fpath, 'CreateSequenceDictionary', 'R=%s' % ref_fpath,
                                'O=%s' % ref_fname + '.dict'], stderr=open(log_fpath, 'a'))
-
+    get_chr_lengths(ref_fpath)
     print 'Realign indels...'
     cmd = ['java', '-Xmx%sg' % mem_gb, '-jar', config.gatk_fpath, '-T', 'RealignerTargetCreator', '-R', ref_fpath, '-nt', num_threads,
                             '-I', bam_fpath, '-o', targetintervals_fpath]
     if not config.reduced_workflow:
-        cmd += ['-known', config.known_fpath, '-known', config.tg_indels_fpath]
+        cmd += ['-known', config.gold_indels_fpath, '-known', config.tg_indels_fpath]
     utils.call_subprocess(cmd, stderr=open(log_fpath, 'a'))
     cmd = ['java', '-Xmx%sg' % mem_gb, '-jar', config.gatk_fpath, '-T', 'IndelRealigner', '-R', ref_fpath,
                             '-I', bam_fpath, '-targetIntervals',  targetintervals_fpath, '-o', final_bam_fpath]
     if not config.reduced_workflow:
-        cmd += ['-known', config.known_fpath, '-known', config.tg_indels_fpath]
+        cmd += ['-known', config.gold_indels_fpath, '-known', config.tg_indels_fpath]
     utils.call_subprocess(cmd, stderr=open(log_fpath, 'a'))
 
     if not config.reduced_workflow:
@@ -104,11 +103,12 @@ def get_chr_lengths(ref_fpath):
             line = line.split()
             config.chr_names.append(line[0])
             config.chr_lengths[line[0]] = line[1]
+    ref_index_file.close()
 
-def do(ref_fpath, samples, sample_ids, scratch_dirpath, output_dirpath, project_id):
+def do(ref_fpath, samples, sample_ids, scratch_dirpath, output_dirpath):
     from libs.joblib import Parallel, delayed
     n_jobs = min(len(samples), config.max_threads)
     num_threads = max(1, config.max_threads//n_jobs)
-    final_bam_fpaths = Parallel(n_jobs=n_jobs)(delayed(process_single_sample)(ref_fpath, sample_ids[i], samples[i], scratch_dirpath, output_dirpath, project_id, str(num_threads))
+    final_bam_fpaths = Parallel(n_jobs=n_jobs)(delayed(process_single_sample)(ref_fpath, sample_ids[i], samples[i], scratch_dirpath, output_dirpath, str(num_threads))
                                                for i in range(len(samples)))
     return final_bam_fpaths
