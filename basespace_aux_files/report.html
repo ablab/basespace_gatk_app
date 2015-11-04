@@ -1,0 +1,179 @@
+<!doctype html>
+<html>
+<head>
+     <title>GATK3 Best Practices Report</title>
+    <link type="text/css" href="https://cdn.datatables.net/1.10.2/css/jquery.dataTables.css" rel="stylesheet">
+    <link href="/public/cdn/basespace/css/basestrap.min.css" rel="stylesheet" type="text/css">
+    <link type="text/css" href="/asset.axd?id=ExtraCss" rel="stylesheet">
+</head>
+<body>
+    <div class="container">
+        <div class="row">
+            <div class="col-sm-12">
+                <h1 class="bs-section-heading">
+                    GATK3 Best Practices Report
+                </h1>
+            </div>    
+        </div>      
+        <br>
+        <div class="row">
+            <div class="col-sm-12">
+                <h2 class="bs-section-heading">Input File(s)</h2>
+                    <div class="row">
+                        <div class="col-sm-12">
+                            <section class="bs-panel">
+                                <table class="table bs-table" >
+                                    <thead>
+                                        <tr>
+                                        {% for key in result.files %}
+                                            {% if key contains 'File_Info.tsv' %}
+                                                {% for column_name in result.files[key].parse.column_names %}
+                                                <th>{{ column_name }}</th>
+                                                {% endfor %}
+                                            {% endif %}
+                                        {% endfor %}
+                                        </tr>
+                                    </thead>
+                                    <tbody style="background-color: white;">
+                                        {% for key in result.files %}
+                                            {% if key contains 'File_Info.tsv' %}
+                                                {% for row in result.files[key].parse.rows %}
+                                                <tr>
+                                                    {% for col in row %}
+                                                    <td>{{ col }}</td>
+                                                    {% endfor %}
+                                                </tr>
+                                                {% endfor %}
+                                            {% endif %}
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </section>
+                        </div>
+                    </div>
+            </div>
+        </div>  
+        <br>
+        <div class="row">
+            <div class="col-sm-12">
+                <h2 class="bs-section-heading">VCF Stats</h2>
+                    <div class="row">
+                        <div class="col-sm-12">
+                            <section class="bs-panel">
+                                <table class="table bs-table">
+                                    <thead>
+                                        <tr>
+                                        {% for key in result.files %}
+                                            {% if key contains 'SNP_Info.tsv' %}
+                                                {% for column_name in result.files[key].parse.column_names %}
+                                                <th>{{ column_name }}</th>
+                                                {% endfor %}
+                                            {% endif %}
+                                        {% endfor %}
+                                        </tr>
+                                    </thead>
+                                    <tbody style="background-color: white;">
+                                        {% for key in result.files %}
+                                            {% if key contains 'SNP_Info.tsv' %}
+                                                {% for row in result.files[key].parse.rows %}
+                                                <tr>
+                                                    {% for col in row %}
+                                                    <td>{{ col }}</td>
+                                                    {% endfor %}
+                                                </tr>
+                                                {% endfor %}
+                                            {% endif %}
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </section>
+                        </div>
+                    </div>
+            </div>
+        </div>  
+        <br>
+        <div class="row">
+            <div class="col-sm-12">
+                <h2 class="bs-section-heading">Indel Stats</h2>
+                    <div class="row">
+                        <div class="col-sm-12">
+                            <section class="bs-panel">
+                                <table class="table bs-table">
+                                    <thead>
+                                        <tr>
+                                        {% for key in result.files %}
+                                            {% if key contains 'Indel_Info.tsv' %}
+                                                {% for column_name in result.files[key].parse.column_names %}
+                                                <th>{{ column_name }}</th>
+                                                {% endfor %}
+                                            {% endif %}
+                                        {% endfor %}
+                                        </tr>
+                                    </thead>
+                                    <tbody style="background-color: white;">
+                                        {% for key in result.files %}
+                                            {% if key contains 'Indel_Info.tsv' %}
+                                                {% for row in result.files[key].parse.rows %}
+                                                <tr>
+                                                    {% for col in row %}
+                                                    <td>{{ col }}</td>
+                                                    {% endfor %}
+                                                </tr>
+                                                {% endfor %}
+                                            {% endif %}
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </section>
+                        </div>
+                    </div>
+            </div>
+        </div>  
+        <br>
+        <div class="row">
+            <div class="col-sm-12">
+                <h2 class="bs-section-heading">Ts/Tv Stats</h2>
+                    <div class="row">
+                        <div class="col-sm-12">
+                            <section class="bs-panel">
+                                <table class="table bs-table">
+                                    <thead>
+                                        <tr>
+                                        {% for key in result.files %}
+                                            {% if key contains 'TsTv_Info.tsv' %}
+                                                {% for column_name in result.files[key].parse.column_names %}
+                                                <th>{{ column_name }}</th>
+                                                {% endfor %}
+                                            {% endif %}
+                                        {% endfor %}
+                                        </tr>
+                                    </thead>
+                                    <tbody style="background-color: white;">
+                                        {% for key in result.files %}
+                                            {% if key contains 'TsTv_Info.tsv' %}
+                                                {% for row in result.files[key].parse.rows %}
+                                                <tr>
+                                                    {% for col in row %}
+                                                    <td>{{ col }}</td>
+                                                    {% endfor %}
+                                                </tr>
+                                                {% endfor %}
+                                            {% endif %}
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </section>
+                        </div>
+                    </div>
+            </div>
+        </div>  
+        <br>
+        </div>
+    </div>
+        <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.10.1/jquery.min.js"></script>
+    <script src="https://basespace-cdn-public-east.s3.amazonaws.com/libraries/jshashtable/jshashtable-2.1.js"></script>
+    <script src="https://basespace-cdn-public-east.s3.amazonaws.com/libraries/jquery.numberformatter/jquery.numberformatter-1.2.3.min.js"></script>
+    <script src="https://basespace-cdn-public-east.s3.amazonaws.com/libraries/underscore/1.4.4/underscore-min.js"></script>
+    <script src="https://basespace-cdn-public-east.s3.amazonaws.com/libraries/basespace-javascript-sdk/0.2.0/basespace-sdk.js"></script>
+</body>
+</html>
