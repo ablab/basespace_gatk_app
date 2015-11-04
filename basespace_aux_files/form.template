@@ -1,68 +1,115 @@
 {
-    "$type": "Form",
-    "fields": [
-        {
-            "$type": "TextBox",
-            "size": 400,
-            "minLength": 0,
-            "maxLength": 150,
-            "value": "Example [LocalDateTime]",
-            "label": "Analysis Name",
-            "required": true,
-            "requiredMessage": "Please enter name for your app session.",
-            "id": "app-session-name"
-        },{
-            "$type": "AppResultChooser",
-        	"size": 250,
-        	"valueType": "Input",
-        	"multiselect": "true",
-        	"label": "App Result",
-        	"required": true,
-        	"requiredMessage": "Please choose an app result",
-        	"id": "app-result-id"
-        },
-        {
-            "$type": "ProjectChooser",
-            "size": 300,
-            "valueType": "Output",
-            "allowedPermissions": "owner",
-            "label": "Save Results To",
-            "required": true,
-            "id": "project-id",
-            "allowResourceCreation": true,
-            "rules": "is-project-owner"
-        },
-        {
-            "$type": "SectionBreak"
-        },
-        {
-            "$type": "Select",
-        	"id": "select-ref",
-        	"label": "Select reference",
-        	"multiselect": false,
-        	"choices": [
-        		{
-        			"value": 1,
-        			"text": "Human (hg19)",
-        			"selected": true
-        		}
-        	]
-        }
-    ],
-    "rulesets":[
-        {
-            "$type": "PermissionValidationRule",
-            "permissions": "Read",
-            "severity": "Error",
-            "message": "You do not have read access to the selected sample",
-            "id": "sample-reader"
-        },
-        {
-            "$type": "PermissionValidationRule",
-            "permissions": "Own",
-            "severity": "Error",
-            "message": "You aren't the owner of the selected project.",
-            "id": "is-project-owner"
-        }
-    ]
+	"$type": "Form",
+	"fields": [
+		{
+			"$type": "TextBox",
+			"size": 400,
+			"minLength": 0,
+			"maxLength": 150,
+			"value": "Example [LocalDateTime]",
+			"label": "Analysis Name",
+			"required": true,
+			"requiredMessage": "Please enter name for your app session.",
+			"id": "app-session-name"
+		},{
+			"$type": "AppResultChooser",
+			"size": 250,
+			"valueType": "Input",
+			"multiselect": "true",
+			"label": "App Result",
+			"required": true,
+			"requiredMessage": "Please choose an app result",
+			"id": "app-result-id"
+		},
+		{
+			"$type": "ProjectChooser",
+			"size": 300,
+			"valueType": "Output",
+			"allowedPermissions": "owner",
+			"label": "Save Results To",
+			"required": true,
+			"id": "project-id",
+			"allowResourceCreation": true,
+			"rules": "is-project-owner"
+		},
+		{
+			"$type": "SectionBreak"
+		},
+		{
+			"$type": "RadioButton",
+			"id": "select-ref",
+			"label": "Select reference",
+			"value": 0,
+			
+			"choices": [
+				{
+					"value": 0,
+					"label": "Human (USCS hg19)"
+				},
+				{
+					"value": 1,
+					"label": "Custom FASTA-file"
+				}
+			],
+			"togglers": [
+				{
+					"toggleOnValue": 0, 
+					"toggleFields": "checkbox-full" 
+				},
+				{
+					"toggleOnValue": 1, 
+					"toggleFields": "custom-ref-id" 
+				}
+			]
+		},
+		{
+			"$type": "FileChooser",
+			"size": 500,
+			"valueType": "Input",
+			"extensionFilters": ".fasta,.fa,.fna",
+			"multiselect": false,
+			"required": false,
+			"label": "File",
+			"requiredMessage": "Please choose a file",
+			"id": "custom-ref-id"
+		},
+		{
+			"$type": "CheckBox",
+			"id": "checkbox-full",
+			
+			"choices": [
+				{
+					"value": 1,
+					"label": "Use full GATK3 Best practices pipeline with base recalibration and filtering variants (slower, but more precisious)",
+				}
+			]
+		},
+		{
+			"$type": "CheckBox",
+			"id": "checkbox-lowemit",
+			
+			"choices": [
+				{
+					"value": 1,
+					"label": "Emit low quality variant calls (slightly more sensitive, but less precisious)",
+				}
+			]
+		}
+	],
+	"rulesets":[
+		{
+			"$type": "PermissionValidationRule",
+			"permissions": "Read",
+			"severity": "Error",
+			"message": "You do not have read access to the selected sample",
+			"id": "sample-reader"
+		},
+		{
+			"$type": "PermissionValidationRule",
+			"permissions": "Own",
+			"severity": "Error",
+			"message": "You aren't the owner of the selected project.",
+			"id": "is-project-owner"
+		}
+	]
 }
