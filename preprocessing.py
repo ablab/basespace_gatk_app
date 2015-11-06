@@ -102,7 +102,7 @@ def get_chr_lengths(ref_fpath):
         if line:
             line = line.split()
             config.chr_names.append(line[0])
-            config.chr_lengths[line[0]] = line[1]
+            config.chr_lengths[line[0]] = int(line[1])
     ref_index_file.close()
 
 def do(ref_fpath, samples, sample_ids, scratch_dirpath, output_dirpath):
