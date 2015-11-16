@@ -31,7 +31,9 @@ long_options  = 'reference= samples= full low-emit threads= memory='
 
 # for BaseSpace
 RESULTS_DIR = "/data/output/appresults/"
-INPUT_DIR = "/data/input/samples/"
+INPUT_DIR_LOCAL = "/data/input_override/"
+INPUT_DIR_CLOUD = "/data/input/"
+INPUT_DIR = INPUT_DIR_CLOUD
 SCRATCH_DIR = "/data/scratch/"
 
 db_dirname = 'db'

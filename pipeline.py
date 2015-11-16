@@ -14,6 +14,7 @@ import json
 
 import config
 import utils
+from os.path import join
 
 references = ['/genomes/Homo_sapiens/UCSC/hg19/Sequence/WholeGenomeFasta/genome.fa',
               '/genomes/Homo_sapiens/Ensembl/GRCh37/Sequence/WholeGenomeFasta/genome.fa']
@@ -25,7 +26,12 @@ def parse_basespace_input(project_id):
     samples = []
     sample_ids = []
     sample_names = []
-    json_file = open('/data/input/AppSession.json')
+    config.INPUT_DIR = config.INPUT_DIR_CLOUD
+    json_fname = join(config.INPUT_DIR, 'AppSession.json')
+    if not os.path.isfile(json_fname):
+        config.INPUT_DIR = config.INPUT_DIR_LOCAL
+        json_fname = join(config.INPUT_DIR, 'AppSession.json')
+    json_file = open(json_fname)
     json_object = json.load(json_file)
     config.temp_output_dir = config.SCRATCH_DIR
 
@@ -38,7 +44,7 @@ def parse_basespace_input(project_id):
             continue
         if entry["Name"] == "Input.project-id":
             project_id = entry["Content"]["Id"]
-            config.output_dir = os.path.join(config.RESULTS_DIR, project_id, 'Results')
+            config.output_dir = join(config.RESULTS_DIR, project_id, 'Results')
             if os.path.isdir(config.output_dir):
                 shutil.rmtree(config.output_dir)
             os.makedirs(config.output_dir)
@@ -47,11 +53,11 @@ def parse_basespace_input(project_id):
         elif entry['Name'] == 'Input.AppResults':
             for sample in range(len(entry['Items'])):
                 sample_id = entry['Items'][sample]['Id']
-                sample_dir = '/data/input/appresults/%s/' % sample_id
+                sample_dir = join(config.INPUT_DIR, 'appresults', sample_id)
                 for root, dirs, files in os.walk(str(sample_dir)):
                     for name in files:
                         if name.endswith('.bam'):
-                            samples.append(os.path.join(root, name))
+                            samples.append(join(root, name))
                             sample_ids.append(sample_id)
                             sample_names.append(entry['Items'][sample]['Name'])
         elif entry['Name'] == 'Input.select-ref':
@@ -59,12 +65,12 @@ def parse_basespace_input(project_id):
         elif entry['Name'] == 'Input.Files':
             for sample in range(len(entry['Items'])):
                 file_id = entry['Items'][sample]['ParentAppResult']['Id']
-                ref_dir = '/data/input/appresults/%s/' % file_id
+                ref_dir = join(config.INPUT_DIR, 'appresults', file_id)
                 for root, dirs, files in os.walk(str(ref_dir)):
                     for name in files:
                         if name.endswith('.fasta') or name.endswith('.fa') or name.endswith('.fna'):
-                            raw_ref_fpath = os.path.join(root, name)
-                            ref_fpath = os.path.join(config.temp_output_dir, name)
+                            raw_ref_fpath = join(root, name)
+                            ref_fpath = join(config.temp_output_dir, name)
                             shutil.copy(raw_ref_fpath, ref_fpath)
         elif entry['Name'] == 'Input.checkbox-full':
             config.reduced_workflow = False
