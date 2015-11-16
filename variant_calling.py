@@ -13,19 +13,21 @@ import utils
 from libs.joblib import Parallel, delayed
 from config import *
 
-col_names_count_vars = ["CountVariants","CompRod","EvalRod","Sample","nProcessedLoci","nCalledLoci","nRefLoci",
-                        "nVariantLoci","variantRate","variantRatePerBp","nSNPs","nMNPs","nInsertions","nDeletions",
-                        "nComplex","nSymbolic","nMixed","nNoCalls","nHets","nHomRef","nHomVar","nSingletons","nHomDerived",
-                        "heterozygosity","heterozygosityPerBp","hetHomRatio","indelRate","indelRatePerBp","insertionDeletionRatio"]
-col_names_titv = ["TiTvVariantEvaluator","CompRod","EvalRod","Sample","nTi","nTv","tiTvRatio","nTiInComp","nTvInComp","TiTvRatioStandard","nTiDerived","nTvDerived","tiTvDerivedRatio"]
-report_col_names = ["Number","App Result Name","File"]
+col_names_count_vars = ["CountVariants", "CompRod", "EvalRod", "Sample", "nProcessedLoci", "nCalledLoci", "nRefLoci",
+                        "nVariantLoci", "variantRate", "variantRatePerBp", "nSNPs", "nMNPs", "nInsertions",
+                        "nDeletions", "nComplex", "nSymbolic", "nMixed", "nNoCalls", "nHets", "nHomRef", "nHomVar",
+                        "nSingletons", "nHomDerived", "heterozygosity", "heterozygosityPerBp", "hetHomRatio",
+                        "indelRate", "indelRatePerBp", "insertionDeletionRatio"]
+col_names_titv = ["TiTvVariantEvaluator", "CompRod", "EvalRod", "Sample", "nTi", "nTv", "tiTvRatio", "nTiInComp",
+                  "nTvInComp", "TiTvRatioStandard", "nTiDerived", "nTvDerived", "tiTvDerivedRatio"]
+report_col_names = ["Number", "App Result Name", "File"]
 first_col = ["App Result"]
-snp_col_values = ["nSNPs","nSingletons","hetHomRatio"]
-snp_col_names = ["Total SNPs Count","Singletons Count","Het/Hom Ratio"]
-indel_col_values = ["nInsertions","nDeletions","indelRatePerBp","insertionDeletionRatio"]
-indel_col_names = ["Insertions Count","Deletions Count","Indel Rate Per Bp","Insertion/Deletion Ratio"]
-tstv_col_values = ["nTi","nTv","tiTvRatio"]
-tstv_col_names = ["Transitions Count","Transversions Count","Ts/Tv Ratio"]
+snp_col_values = ["nSNPs", "nSingletons", "hetHomRatio"]
+snp_col_names = ["Total SNPs Count", "Singletons Count", "Het/Hom Ratio"]
+indel_col_values = ["nInsertions", "nDeletions", "indelRatePerBp", "insertionDeletionRatio"]
+indel_col_names = ["Insertions Count", "Deletions Count", "Indel Rate Per Bp", "Insertion/Deletion Ratio"]
+tstv_col_values = ["nTi", "nTv", "tiTvRatio"]
+tstv_col_names = ["Transitions Count", "Transversions Count", "Ts/Tv Ratio"]
 chunk_size = 100000000
 
 def val_to_str(val):
@@ -73,7 +75,7 @@ def merge_vcfs(output_dirpath, sampleID, raw_vcf_fpaths, ref_fpath):
     log_fpath = os.path.join(output_dirpath, sampleID + '.log')
     variants = '-V ' + ' -V '.join(raw_vcf_fpaths)
     variants = variants.split()
-    cmd = ['java', '-cp', gatk_fpath, 'org.broadinstitute.gatk.tools.', '-R', ref_fpath, '-assumeSorted',
+    cmd = ['java', '-cp', gatk_fpath, 'org.broadinstitute.gatk.tools.CatVariants', '-R', ref_fpath, '-assumeSorted',
                '-out', merge_vcf_fpath]
     utils.call_subprocess(cmd + variants, stderr=open(log_fpath, 'a'))
     return merge_vcf_fpath
