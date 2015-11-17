@@ -5,6 +5,7 @@
 # All Rights Reserved
 # See file LICENSE for details.
 #############################################################################
+
 import getopt
 
 import os
@@ -18,6 +19,7 @@ from os.path import join
 
 references = ['/genomes/Homo_sapiens/UCSC/hg19/Sequence/WholeGenomeFasta/genome.fa',
               '/genomes/Homo_sapiens/Ensembl/GRCh37/Sequence/WholeGenomeFasta/genome.fa']
+
 
 def parse_basespace_input(project_id):
     ref_num = 0

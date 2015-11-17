@@ -105,6 +105,7 @@ def get_chr_lengths(ref_fpath):
             config.chr_lengths[line[0]] = int(line[1])
     ref_index_file.close()
 
+
 def do(ref_fpath, samples, sample_ids, scratch_dirpath, output_dirpath):
     from libs.joblib import Parallel, delayed
     n_jobs = min(len(samples), config.max_threads)
