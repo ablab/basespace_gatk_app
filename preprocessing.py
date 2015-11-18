@@ -59,13 +59,12 @@ def process_single_sample(ref_fpath, sample_id, bam_fpath, scratch_dirpath, outp
         bam_fpath = replace_rg_fpath
     if not os.path.exists(ref_fpath + '.fai'):
         print 'Preparing reference file...'
-        samtools_fpath = os.path.join(config.samtools_dirpath, 'samtools')
-        utils.call_subprocess([samtools_fpath, 'faidx', ref_fpath], stderr=open(log_fpath, 'a'))
+        utils.call_subprocess(['samtools', 'faidx', ref_fpath], stderr=open(log_fpath, 'a'))
         ref_fname, _ = os.path.splitext(ref_fpath)
         utils.call_subprocess(['java', '-jar', config.picard_fpath, 'CreateSequenceDictionary', 'R=%s' % ref_fpath,
                                'O=%s' % ref_fname + '.dict'], stderr=open(log_fpath, 'a'))
     get_chr_lengths(ref_fpath)
-    print 'Realign indels...'
+    print 'Realigning indels...'
     cmd = ['java', '-Xmx%sg' % mem_gb, '-jar', config.gatk_fpath, '-T', 'RealignerTargetCreator', '-R', ref_fpath, '-nt', num_threads,
                             '-I', bam_fpath, '-o', targetintervals_fpath]
     if not config.reduced_workflow:
@@ -78,7 +77,7 @@ def process_single_sample(ref_fpath, sample_id, bam_fpath, scratch_dirpath, outp
     utils.call_subprocess(cmd, stderr=open(log_fpath, 'a'))
 
     if not config.reduced_workflow:
-        print 'Recalibrate bases...'
+        print 'Recalibrating bases...'
         recaltable_fpath = os.path.join(scratch_dirpath, sample_id + '.table')
         utils.call_subprocess(['java', '-Xmx%sg' % mem_gb, '-jar', config.gatk_fpath, '-T', 'BaseRecalibrator', '-R', ref_fpath, '-nct', num_threads,
                                 '-I', final_bam_fpath, '-knownSites', config.dbsnp_fpath, '-dt', 'ALL_READS', '-dfrac', '0.10 ',

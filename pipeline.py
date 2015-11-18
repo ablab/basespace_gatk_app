@@ -128,13 +128,15 @@ def main(args):
         config.max_threads = max(1, config.max_memory/2)
     config.max_gatk_threads = config.max_threads
     utils.check_gatk()
-    utils.check_samtools()
+    utils.check_external_programs(['java', 'samtools', 'bgzip', 'tabix'])
 
     # one sample per launch in multi-node mode
+    print '\nStarting GATK3 Best Practices workflow'
     import preprocessing
     bam_fpaths = preprocessing.do(ref_fpath, samples_fpaths, sample_ids, config.temp_output_dir, config.output_dir)
     import variant_calling
     variant_calling.do(ref_fpath, sample_ids, bam_fpaths, config.temp_output_dir, config.output_dir, project_id, samples_fpaths, sample_names)
+    print 'GATK3 Best Practices workflow finished!'
     return
 
 if __name__ == '__main__':

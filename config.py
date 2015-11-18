@@ -45,10 +45,6 @@ picard_dirpath = os.path.join(LIBS_LOCATION, 'picard')
 picard_fpath = os.path.join(picard_dirpath, 'picard.jar')
 picard_tmp_dirpath = os.path.join(SCRATCH_DIR, 'tmp')
 
-samtools_dirpath = os.path.join(LIBS_LOCATION, 'samtools')
-bgzip_fpath = os.path.join(LIBS_LOCATION, 'misc', 'bgzip')
-tabix_fpath = os.path.join(LIBS_LOCATION, 'misc', 'tabix')
-
 dbsnp_fpath = '/genomes/Homo_sapiens/UCSC/hg19/Annotation/dbsnp_132.hg19.vcf'
 gold_indels_fpath = os.path.join(DIR_HOME, db_dirname, 'gold_indels.vcf')
 tg_indels_fpath = os.path.join(DIR_HOME, db_dirname, '1000G_phase1.indels.hg19.vcf')

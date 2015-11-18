@@ -151,11 +151,11 @@ def process_files(ref_fpath, sample_ids, bam_fpaths, scratch_dirpath, output_dir
     printReport(report_vars_fpath, report_tstv_fpath, sample_names, sample_ids, sample_files, output_dirpath)
 
     for g_vcf_fpath in g_vcf_fpaths:
-        utils.call_subprocess([bgzip_fpath, g_vcf_fpath], stderr=open(log_fpath, 'a'))
-        utils.call_subprocess([tabix_fpath, '-p', 'vcf', g_vcf_fpath + '.gz'], stderr=open(log_fpath, 'a'))
+        utils.call_subprocess(['bgzip', '-f', g_vcf_fpath], stderr=open(log_fpath, 'a'))
+        utils.call_subprocess(['tabix', '-p', 'vcf', g_vcf_fpath + '.gz'], stderr=open(log_fpath, 'a'))
 
-    utils.call_subprocess([bgzip_fpath, vcf_fpath], stderr=open(log_fpath, 'a'))
-    utils.call_subprocess([tabix_fpath, '-p', 'vcf', vcf_fpath + '.gz'], stderr=open(log_fpath, 'a'))
+    utils.call_subprocess(['bgzip', '-f', vcf_fpath], stderr=open(log_fpath, 'a'))
+    utils.call_subprocess(['tabix', '-p', 'vcf', vcf_fpath + '.gz'], stderr=open(log_fpath, 'a'))
     return vcf_fpath
 
 def printReport(report_vars_fpath, report_tstv_fpath, sample_names, sample_ids, sample_files, output_dirpath):
