@@ -23,7 +23,7 @@
 		},
 		{
 			"$type": "ProjectChooser",
-			"size": 300,
+			"size": 250,
 			"valueType": "Output",
 			"allowedPermissions": "owner",
 			"label": "Save Results To",
@@ -40,7 +40,7 @@
 			"id": "select-ref",
 			"label": "Select reference",
 			"value": 0,
-			
+
 			"choices": [
 				{
 					"value": 0,
@@ -53,18 +53,18 @@
 			],
 			"togglers": [
 				{
-					"toggleOnValue": 0, 
-					"toggleFields": "checkbox-full" 
+					"toggleOnValue": 0,
+					"toggleFields": "checkbox-full"
 				},
 				{
-					"toggleOnValue": 1, 
-					"toggleFields": "custom-ref-id" 
+					"toggleOnValue": 1,
+					"toggleFields": "custom-ref-id"
 				}
 			]
 		},
 		{
 			"$type": "FileChooser",
-			"size": 500,
+			"size": 250,
 			"valueType": "Input",
 			"extensionFilters": ".fasta,.fa,.fna",
 			"multiselect": false,
@@ -76,24 +76,26 @@
 		{
 			"$type": "CheckBox",
 			"id": "checkbox-full",
-			
+
 			"choices": [
 				{
 					"value": 1,
-					"label": "Use full GATK3 Best practices pipeline with base recalibration and filtering variants (slower, but more precisious)",
+					"label": "Full pipeline"
 				}
-			]
+			],
+            "helpText": "Use full GATK3 Best practices pipeline with base recalibration and filtering variants (slower, but more precisious)"
 		},
 		{
 			"$type": "CheckBox",
 			"id": "checkbox-lowemit",
-			
+
 			"choices": [
 				{
 					"value": 1,
-					"label": "Emit low quality variant calls (slightly more sensitive, but less precisious)",
+					"label": "Emit low quality variant calls"
 				}
-			]
+			],
+			"helpText": "Slightly more sensitive, but less precisious"
 		}
 	],
 	"rulesets":[
