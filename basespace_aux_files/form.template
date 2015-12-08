@@ -44,7 +44,7 @@
 			"choices": [
 				{
 					"value": 0,
-					"label": "Human (USCS hg19)"
+					"label": "Human (UCSC hg19)"
 				},
 				{
 					"value": 1,
@@ -83,7 +83,7 @@
 					"label": "Full pipeline"
 				}
 			],
-            "helpText": "Use full GATK3 Best practices pipeline with base recalibration and filtering variants (slower, but more precisious)"
+            "helpText": "Use full GATK3 Best practices pipeline with base recalibration and filtering variants (slower, but more precise)"
 		},
 		{
 			"$type": "CheckBox",
@@ -95,7 +95,7 @@
 					"label": "Emit low quality variant calls"
 				}
 			],
-			"helpText": "Slightly more sensitive, but less precisious"
+			"helpText": "Slightly more sensitive, but less precise"
 		}
 	],
 	"rulesets":[
