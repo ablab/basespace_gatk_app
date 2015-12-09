@@ -29,8 +29,8 @@ def call_subprocess(args, stdin=None, stdout=None, stderr=None, env=None, debug=
         print '    Starting:', ' '.join(printed_args)
     return_code = subprocess.call(args, stdin=stdin, stdout=stdout, stderr=stderr, env=env)
     if return_code != 0 and 'ValidateSamFile' not in args:
-        print 'ERROR! See log files'
-        sys.exit(0)
+        print 'ERROR!'
+        sys.exit(1)
 
     return return_code
 
