@@ -67,3 +67,11 @@ def check_external_programs(names):
         if not get_path_to_program(name):
             print 'ERROR! %s was not found in PATH, please install it manually and/or add to PATH variable' % name
             sys.exit(1)
+
+
+def check_dbsnp():
+    if not os.path.exists(config.dbsnp_fpath):
+        print 'Warning: dbSNP was not found. Full pipeline requires dbSNP, thus reduced workflow will be used for now. ' \
+              'If you want to use full pipeline, please rename the file with dbSNP as dbsnp.vcf, move it to ' + \
+              config.db_dirpath + ' and restart the application.'
+        config.reduced_workflow = True

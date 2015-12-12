@@ -117,6 +117,8 @@ def main(args):
     config.max_gatk_threads = config.max_threads
     utils.check_gatk()
     utils.check_external_programs(['java', 'samtools', 'bgzip', 'tabix'])
+    if not config.reduced_workflow:
+        utils.check_dbsnp()
 
     # one sample per launch in multi-node mode
     print '\nStarting GATK3 Best Practices workflow'

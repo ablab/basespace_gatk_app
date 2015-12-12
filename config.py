@@ -37,6 +37,7 @@ INPUT_DIR = INPUT_DIR_CLOUD
 SCRATCH_DIR = "/data/scratch/"
 
 db_dirname = 'db'
+db_dirpath = os.path.join(DIR_HOME, db_dirname)
 
 gatk_dirpath = os.path.join(LIBS_LOCATION, 'GATK')
 gatk_fpath = os.path.join(gatk_dirpath, 'GenomeAnalysisTK.jar')
@@ -45,12 +46,12 @@ picard_dirpath = os.path.join(LIBS_LOCATION, 'picard')
 picard_fpath = os.path.join(picard_dirpath, 'picard.jar')
 picard_tmp_dirpath = os.path.join(SCRATCH_DIR, 'tmp')
 
-dbsnp_fpath = os.path.join(DIR_HOME, db_dirname, 'dbsnp.vcf')
-gold_indels_fpath = os.path.join(DIR_HOME, db_dirname, 'gold_indels.vcf')
-tg_indels_fpath = os.path.join(DIR_HOME, db_dirname, '1000G_phase1.indels.hg19.vcf')
-hapmap_fpath = os.path.join(DIR_HOME, db_dirname, 'hapmap_3.3.vcf')
-omni_fpath = os.path.join(DIR_HOME, db_dirname, '1000G_omni.vcf')
-mills_fpath = os.path.join(DIR_HOME, db_dirname, 'gold_indels.vcf')
+dbsnp_fpath = os.path.join(db_dirpath, 'dbsnp.vcf')
+gold_indels_fpath = os.path.join(db_dirpath, 'gold_indels.vcf')
+tg_indels_fpath = os.path.join(db_dirpath, '1000G_phase1.indels.hg19.vcf')
+hapmap_fpath = os.path.join(db_dirpath, 'hapmap_3.3.vcf')
+omni_fpath = os.path.join(db_dirpath, '1000G_omni.vcf')
+mills_fpath = os.path.join(db_dirpath, 'gold_indels.vcf')
 
 chr_lengths = {}
 chr_names = []
