@@ -16,9 +16,9 @@
 			"size": 250,
 			"valueType": "Input",
 			"multiselect": "true",
-			"label": "App Result",
+			"label": "App Result(s) with BAM files",
 			"required": true,
-			"requiredMessage": "Please choose an app result",
+			"requiredMessage": "Please choose an App Result with BAM files",
 			"id": "app-result-id"
 		},
 		{
@@ -36,40 +36,13 @@
 			"$type": "SectionBreak"
 		},
 		{
-			"$type": "RadioButton",
-			"id": "select-ref",
-			"label": "Select reference",
-			"value": 0,
-
-			"choices": [
-				{
-					"value": 0,
-					"label": "Human (UCSC hg19)"
-				},
-				{
-					"value": 1,
-					"label": "Custom FASTA-file"
-				}
-			],
-			"togglers": [
-				{
-					"toggleOnValue": 0,
-					"toggleFields": "checkbox-full"
-				},
-				{
-					"toggleOnValue": 1,
-					"toggleFields": "custom-ref-id"
-				}
-			]
-		},
-		{
 			"$type": "FileChooser",
 			"size": 250,
 			"valueType": "Input",
 			"extensionFilters": ".fasta,.fa,.fna",
 			"multiselect": false,
-			"required": false,
-			"label": "File",
+			"required": true,
+			"label": "Reference file",
 			"requiredMessage": "Please choose a file",
 			"id": "custom-ref-id"
 		},
@@ -80,7 +53,7 @@
 			"choices": [
 				{
 					"value": 1,
-					"label": "Full pipeline"
+					"label": "Full pipeline (hg19 only)"
 				}
 			],
             "helpText": "Use full GATK3 Best practices pipeline with base recalibration and filtering variants (slower, but more precise)"

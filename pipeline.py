@@ -17,14 +17,9 @@ import config
 import utils
 from os.path import join
 
-references = ['/genomes/Homo_sapiens/UCSC/hg19/Sequence/WholeGenomeFasta/genome.fa',
-              '/genomes/Homo_sapiens/Ensembl/GRCh37/Sequence/WholeGenomeFasta/genome.fa']
-
 
 def parse_basespace_input(project_id):
-    ref_num = 0
     ref_fpath = None
-
     samples = []
     sample_ids = []
     sample_names = []
@@ -62,8 +57,6 @@ def parse_basespace_input(project_id):
                             samples.append(join(root, name))
                             sample_ids.append(sample_id)
                             sample_names.append(entry['Items'][sample]['Name'])
-        elif entry['Name'] == 'Input.select-ref':
-            ref_num = int(entry['Content'])
         elif entry['Name'] == 'Input.Files':
             for sample in range(len(entry['Items'])):
                 file_id = entry['Items'][sample]['ParentAppResult']['Id']
@@ -78,11 +71,6 @@ def parse_basespace_input(project_id):
             config.reduced_workflow = False
         elif entry['Name'] == 'Input.checkbox-lowemit':
             config.low_emit = True
-
-    if ref_num == 0 or not ref_fpath:
-        ref_fpath = references[0]
-    else:
-        config.reduced_workflow = True
 
     config.max_threads = 24
     config.max_memory = 60
