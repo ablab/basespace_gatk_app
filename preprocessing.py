@@ -87,48 +87,11 @@ def process_single_sample(ref_fpath, sample_id, bam_fpath, scratch_dirpath, outp
     return final_bam_fpath
 
 
-def get_chr_lengths(ref_fpath):
-    ref_index_file = open(ref_fpath + '.fai')
-    config.chr_lengths = {}
-    config.chr_names = []
-    for line in ref_index_file.read().split('\n'):
-        if line:
-            line = line.split()
-            config.chr_names.append(line[0])
-            config.chr_lengths[line[0]] = int(line[1])
-    ref_index_file.close()
-
-
-def prepare_reference(ref_fpath, output_dirpath):
-    print 'Preparing reference file...'
-    log_fpath = os.path.join(output_dirpath, 'processing_reference.log')
-    if not os.path.exists(ref_fpath + '.fai'):
-        utils.call_subprocess(['samtools', 'faidx', ref_fpath], stderr=open(log_fpath, 'a'))
-    ref_fname, _ = os.path.splitext(ref_fpath)
-    if not os.path.exists(ref_fpath + '.dict'):
-        utils.call_subprocess(['java', '-jar', config.picard_fpath, 'CreateSequenceDictionary', 'R=%s' % ref_fpath,
-                               'O=%s' % ref_fname + '.dict'], stderr=open(log_fpath, 'a'))
-    get_chr_lengths(ref_fpath)
-    if not config.reduced_workflow:  # check for hg19 reference
-        if config.chr_names != config.hg19_chr_names:
-            set_reduced_pipeline()
-            return
-        for chr in config.chr_lengths:
-            if chr not in config.hg19_chr_lengths or config.chr_lengths[chr] != config.hg19_chr_lengths[chr]:
-                set_reduced_pipeline()
-                return
-
-
-def set_reduced_pipeline():
-    print 'Warning: full pipeline requires hg19 reference genome. Reduced workflow will be used for now.'
-    config.reduced_workflow = True
-
-
 def do(ref_fpath, samples, sample_ids, scratch_dirpath, output_dirpath):
     from libs.joblib import Parallel, delayed
     n_jobs = min(len(samples), config.max_threads)
     num_threads = max(1, config.max_threads//n_jobs)
-    prepare_reference(ref_fpath, scratch_dirpath)
+    utils.prepare_reference(ref_fpath, scratch_dirpath)
     final_bam_fpaths = Parallel(n_jobs=n_jobs)(delayed(process_single_sample)(ref_fpath, sample_ids[i], samples[i], scratch_dirpath, output_dirpath, str(num_threads))
                                                for i in range(len(samples)))
     return final_bam_fpaths

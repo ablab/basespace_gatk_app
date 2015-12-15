@@ -36,13 +36,40 @@
 			"$type": "SectionBreak"
 		},
 		{
+			"$type": "RadioButton",
+			"id": "select-ref",
+			"label": "Select reference",
+			"value": 0,
+
+			"choices": [
+				{
+					"value": 0,
+					"label": "Human (UCSC hg19)"
+				},
+				{
+					"value": 1,
+					"label": "Custom FASTA-file"
+				}
+			],
+			"togglers": [
+				{
+					"toggleOnValue": 0,
+					"toggleFields": "checkbox-full"
+				},
+				{
+					"toggleOnValue": 1,
+					"toggleFields": "custom-ref-id"
+				}
+			]
+		},
+		{
 			"$type": "FileChooser",
 			"size": 250,
 			"valueType": "Input",
 			"extensionFilters": ".fasta,.fa,.fna",
 			"multiselect": false,
-			"required": true,
-			"label": "Reference file",
+			"required": false,
+			"label": "Custom FASTA",
 			"requiredMessage": "Please choose a file",
 			"id": "custom-ref-id"
 		},

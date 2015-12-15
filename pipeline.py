@@ -20,6 +20,8 @@ from os.path import join
 
 def parse_basespace_input(project_id):
     ref_fpath = None
+    ref_num = 0
+
     samples = []
     sample_ids = []
     sample_names = []
@@ -67,13 +69,46 @@ def parse_basespace_input(project_id):
                             raw_ref_fpath = join(root, name)
                             ref_fpath = join(config.temp_output_dir, name)
                             shutil.copy(raw_ref_fpath, ref_fpath)
+        elif entry['Name'] == 'Input.select-ref':
+            ref_num = int(entry['Content'])
         elif entry['Name'] == 'Input.checkbox-full':
             config.reduced_workflow = False
         elif entry['Name'] == 'Input.checkbox-lowemit':
             config.low_emit = True
 
-    config.max_threads = 24
-    config.max_memory = 60
+    if ref_num != 0:
+        config.reduced_workflow = True
+
+    if os.path.exists(config.hg19_cloud_fpath):
+        config.is_run_on_cloud = True
+        config.max_threads = 24
+        config.max_memory = 60
+        if ref_num == 0:
+            ref_fpath = config.hg19_cloud_fpath
+            config.dbsnp_fpath = config.dbsnp_cloud_fpath
+    else:
+        config.is_run_on_cloud = False
+        utils.set_threads_and_mem()
+        if ref_num == 0:
+            fasta_gz_fpaths = [join(config.db_dirpath,f) for f in os.listdir(config.db_dirpath) if f.endswith('.fa.gz')
+                           or f.endswith('.fna.gz') or f.endswith('.fasta.gz')]
+            for gz_fpath in fasta_gz_fpaths:
+                utils.call_subprocess(['gunzip', '-f', gz_fpath])
+            fasta_fpaths = [join(config.db_dirpath,f) for f in os.listdir(config.db_dirpath) if f.endswith('.fa')
+                           or f.endswith('.fna') or f.endswith('.fasta')]
+            for fasta_filepath in fasta_fpaths:
+                if utils.prepare_reference(config.temp_output_dir, ref_fpath, silent=True):
+                    ref_fpath = fasta_filepath
+                    break
+            if not ref_fpath or not os.path.exists(ref_fpath):
+                print 'Error: hg19 reference file was not found. Please copy the hg19 FASTA-file to ' + config.db_dirpath \
+                      + ' and restart the application.'
+                sys.exit(1)
+
+    if not config.reduced_workflow:
+        dbsnp_exists = utils.check_dbsnp()
+        if dbsnp_exists and not os.path.exists(config.dbsnp_fpath + '.tbi') and config.dbsnp_cloud_fpath.endswith('.gz'):
+            utils.call_subprocess(['tabix', '-p', 'vcf', config.dbsnp_fpath])
     return ref_fpath, samples, sample_ids, sample_names, project_id
 
 def main(args):
@@ -117,8 +152,6 @@ def main(args):
     config.max_gatk_threads = config.max_threads
     utils.check_gatk()
     utils.check_external_programs(['java', 'samtools', 'bgzip', 'tabix'])
-    if not config.reduced_workflow:
-        utils.check_dbsnp()
 
     # one sample per launch in multi-node mode
     print '\nStarting GATK3 Best Practices workflow'

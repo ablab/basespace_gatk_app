@@ -7,3 +7,10 @@ function launchSpec(dataProvider)
         }
 }
 
+function formUpdates(dataProvider)
+{
+    var is_custom_ref = ('' + dataProvider.GetProperty("input.select-ref")) === "1";
+    if (is_custom_ref) {
+        dataProvider.AttributeUpdates.Remove({ ElementId: "checkbox-full", AttributeName: "checked" });
+    }
+}

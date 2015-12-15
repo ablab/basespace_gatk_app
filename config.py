@@ -35,8 +35,11 @@ INPUT_DIR_LOCAL = "/data/input_override/"
 INPUT_DIR_CLOUD = "/data/input/"
 INPUT_DIR = INPUT_DIR_CLOUD
 SCRATCH_DIR = "/data/scratch/"
+is_run_on_cloud = False
+hg19_cloud_fpath = '/genomes/Homo_sapiens/UCSC/hg19/Sequence/WholeGenomeFasta/genome.fa'
+dbsnp_cloud_fpath = '/genomes/Homo_sapiens/UCSC/hg19/Annotation/dbsnp_132.hg19.vcf'
 
-db_dirname = 'db'
+db_dirname = 'data'
 db_dirpath = os.path.join(DIR_HOME, db_dirname)
 
 gatk_dirpath = os.path.join(LIBS_LOCATION, 'GATK')
@@ -46,7 +49,7 @@ picard_dirpath = os.path.join(LIBS_LOCATION, 'picard')
 picard_fpath = os.path.join(picard_dirpath, 'picard.jar')
 picard_tmp_dirpath = os.path.join(SCRATCH_DIR, 'tmp')
 
-dbsnp_fpath = os.path.join(db_dirpath, 'dbsnp.vcf')
+dbsnp_fpath = os.path.join(db_dirpath, 'dbsnp.vcf.gz')
 gold_indels_fpath = os.path.join(db_dirpath, 'gold_indels.vcf')
 tg_indels_fpath = os.path.join(db_dirpath, '1000G_phase1.indels.hg19.vcf')
 hapmap_fpath = os.path.join(db_dirpath, 'hapmap_3.3.vcf')

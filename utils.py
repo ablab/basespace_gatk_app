@@ -72,6 +72,66 @@ def check_external_programs(names):
 def check_dbsnp():
     if not os.path.exists(config.dbsnp_fpath):
         print 'Warning: dbSNP was not found. Full pipeline requires dbSNP, thus reduced workflow will be used for now. ' \
-              'If you want to use full pipeline, please rename the file with dbSNP as dbsnp.vcf, move it to ' + \
+              'If you want to use full pipeline, please rename the archive with dbSNP as dbsnp.vcf.gz, move it to ' + \
               config.db_dirpath + ' and restart the application.'
         config.reduced_workflow = True
+        return False
+    return True
+
+def set_threads_and_mem():
+    try:
+        import multiprocessing
+        config.max_threads = max(1, multiprocessing.cpu_count() / 2)
+        config.max_memory = max(2, get_free_memory() / 2)
+
+    except (ImportError, NotImplementedError):
+        pass
+
+
+def get_free_memory():
+    from psutil import virtual_memory
+    mem = virtual_memory()
+
+    return mem.total / 10 ** 9
+
+
+def set_reduced_pipeline():
+    print 'Warning: full pipeline requires hg19 reference genome. Reduced workflow will be used for now.'
+    config.reduced_workflow = True
+
+
+def prepare_reference(ref_fpath, output_dirpath, silent=False):
+    if not silent:
+        print 'Preparing reference file...'
+    log_fpath = os.path.join(output_dirpath, 'processing_reference.log')
+    if not os.path.exists(ref_fpath + '.fai'):
+        call_subprocess(['samtools', 'faidx', ref_fpath], stderr=open(log_fpath, 'a'))
+    ref_fname, _ = os.path.splitext(ref_fpath)
+    if not os.path.exists(ref_fname + '.dict'):
+        call_subprocess(['java', '-jar', config.picard_fpath, 'CreateSequenceDictionary', 'R=%s' % ref_fpath,
+                               'O=%s' % ref_fname + '.dict'], stderr=open(log_fpath, 'a'))
+    get_chr_lengths(ref_fpath)
+    if not config.is_run_on_cloud:
+        if not config.reduced_workflow or silent:  # check for hg19 reference
+            if config.chr_names != config.hg19_chr_names:
+                if not silent:
+                    set_reduced_pipeline()
+                return False
+            for chr in config.chr_lengths:
+                if chr not in config.hg19_chr_lengths or config.chr_lengths[chr] != config.hg19_chr_lengths[chr]:
+                    if not silent:
+                        set_reduced_pipeline()
+                    return False
+    return True
+
+
+def get_chr_lengths(ref_fpath):
+    ref_index_file = open(ref_fpath + '.fai')
+    config.chr_lengths = {}
+    config.chr_names = []
+    for line in ref_index_file.read().split('\n'):
+        if line:
+            line = line.split()
+            config.chr_names.append(line[0])
+            config.chr_lengths[line[0]] = int(line[1])
+    ref_index_file.close()
