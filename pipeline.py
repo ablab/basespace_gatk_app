@@ -97,7 +97,7 @@ def parse_basespace_input(project_id):
             fasta_fpaths = [join(config.db_dirpath,f) for f in os.listdir(config.db_dirpath) if f.endswith('.fa')
                            or f.endswith('.fna') or f.endswith('.fasta')]
             for fasta_filepath in fasta_fpaths:
-                if utils.prepare_reference(config.temp_output_dir, ref_fpath, silent=True):
+                if utils.prepare_reference(fasta_filepath, config.temp_output_dir, silent=True):
                     ref_fpath = fasta_filepath
                     break
             if not ref_fpath or not os.path.exists(ref_fpath):
@@ -107,7 +107,7 @@ def parse_basespace_input(project_id):
 
     if not config.reduced_workflow:
         dbsnp_exists = utils.check_dbsnp()
-        if dbsnp_exists and not os.path.exists(config.dbsnp_fpath + '.tbi') and config.dbsnp_cloud_fpath.endswith('.gz'):
+        if dbsnp_exists and not os.path.exists(config.dbsnp_fpath + '.tbi') and config.dbsnp_fpath.endswith('.gz'):
             utils.call_subprocess(['tabix', '-p', 'vcf', config.dbsnp_fpath])
     return ref_fpath, samples, sample_ids, sample_names, project_id
 
@@ -153,7 +153,6 @@ def main(args):
     utils.check_gatk()
     utils.check_external_programs(['java', 'samtools', 'bgzip', 'tabix'])
 
-    # one sample per launch in multi-node mode
     print '\nStarting GATK3 Best Practices workflow'
     import preprocessing
     bam_fpaths = preprocessing.do(ref_fpath, samples_fpaths, sample_ids, config.temp_output_dir, config.output_dir)

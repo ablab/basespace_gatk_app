@@ -80,7 +80,7 @@
 			"choices": [
 				{
 					"value": 1,
-					"label": "Full pipeline (hg19 only)"
+					"label": "Full pipeline (UCSC hg19 only)"
 				}
 			],
             "helpText": "Use full GATK3 Best practices pipeline with base recalibration and filtering variants (slower, but more precise)"
