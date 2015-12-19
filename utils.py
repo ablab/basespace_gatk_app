@@ -28,7 +28,7 @@ def call_subprocess(args, stdin=None, stdout=None, stderr=None, env=None, debug=
     if debug:
         print '    Starting:', ' '.join(printed_args)
     return_code = subprocess.call(args, stdin=stdin, stdout=stdout, stderr=stderr, env=env)
-    if return_code != 0 and 'ValidateSamFile' not in args:
+    if return_code != 0 and 'ValidateSamFile' not in args and 'VariantRecalibrator' not in args:
         print 'ERROR!'
         sys.exit(1)
 

@@ -7,7 +7,7 @@
 #############################################################################
 
 import os
-import shlex
+import shutil
 import config
 import utils
 from libs.joblib import Parallel, delayed
@@ -114,7 +114,7 @@ def process_files(ref_fpath, sample_ids, bam_fpaths, scratch_dirpath, output_dir
         recal_indel_fpath = os.path.join(scratch_dirpath, project_id + '_INDEL.recal')
         tranches_indel_fpath = os.path.join(scratch_dirpath, project_id + '_INDEL.tranches')
         # variant filtering
-        utils.call_subprocess(
+        return_code = utils.call_subprocess(
             ['java', '-Xmx%sg' % mem_gb, '-jar', gatk_fpath, '-T', 'VariantRecalibrator', '-R', ref_fpath, '-input', raw_vcf_fpath,
                '-resource:hapmap,known=false,training=true,truth=true,prior=15.0', hapmap_fpath,
                '-resource:omni,known=false,training=true,truth=true,prior=12.0', omni_fpath,
@@ -122,23 +122,28 @@ def process_files(ref_fpath, sample_ids, bam_fpaths, scratch_dirpath, output_dir
                '-resource:dbsnp,known=true,training=false,truth=false,prior=2.0', dbsnp_fpath,
                '-an', 'DP', '-an', 'QD', '-an', 'FS', '-an', 'MQ', '-an', 'MQRankSum', '-an', 'ReadPosRankSum',
                '-mode', 'SNP', '-recalFile', recal_fpath, '-tranchesFile', tranches_fpath, '-nt', num_threads], stderr=open(log_fpath, 'a'))
+        if return_code != 0:
+            print_variant_filtering_warning(raw_vcf_fpath, vcf_fpath)
+        else:
+            utils.call_subprocess(
+                ['java', '-Xmx%sg' % mem_gb, '-jar', gatk_fpath, '-T', 'ApplyRecalibration', '-R', ref_fpath, '-input', raw_vcf_fpath, '-mode', 'SNP',
+             '--ts_filter_level', '99.5', '-recalFile', recal_fpath, '-tranchesFile', tranches_fpath, '-o', raw_indels_vcf_fpath], stderr=open(log_fpath, 'a'))
 
-        utils.call_subprocess(
-            ['java', '-Xmx%sg' % mem_gb, '-jar', gatk_fpath, '-T', 'ApplyRecalibration', '-R', ref_fpath, '-input', raw_vcf_fpath, '-mode', 'SNP',
-         '--ts_filter_level', '99.5', '-recalFile', recal_fpath, '-tranchesFile', tranches_fpath, '-o', raw_indels_vcf_fpath], stderr=open(log_fpath, 'a'))
+            utils.call_subprocess(
+                ['java', '-Xmx%sg' % mem_gb, '-jar', gatk_fpath, '-T', 'VariantRecalibrator', '-R', ref_fpath, '-input', raw_indels_vcf_fpath,
+                   '-resource:mills,known=true,training=true,truth=true,prior=12.0', mills_fpath,
+                   '-resource:dbsnp,known=true,training=false,truth=false,prior=2.0', dbsnp_fpath,
+                   '-an', 'DP', '-an', 'QD', '-an', 'FS', '-an', 'MQRankSum', '-an', 'ReadPosRankSum',
+                   '-mode', 'INDEL', '--maxGaussians', '4', '-recalFile', recal_indel_fpath,
+                 '-tranchesFile', tranches_indel_fpath, '-nt', num_threads], stderr=open(log_fpath, 'a'))
 
-        utils.call_subprocess(
-            ['java', '-Xmx%sg' % mem_gb, '-jar', gatk_fpath, '-T', 'VariantRecalibrator', '-R', ref_fpath, '-input', raw_indels_vcf_fpath,
-               '-resource:mills,known=true,training=true,truth=true,prior=12.0', mills_fpath,
-               '-resource:dbsnp,known=true,training=false,truth=false,prior=2.0', dbsnp_fpath,
-               '-an', 'DP', '-an', 'QD', '-an', 'FS', '-an', 'MQRankSum', '-an', 'ReadPosRankSum',
-               '-mode', 'INDEL', '--maxGaussians', '4', '-recalFile', recal_indel_fpath,
-             '-tranchesFile', tranches_indel_fpath, '-nt', num_threads], stderr=open(log_fpath, 'a'))
-
-        utils.call_subprocess(
-            ['java', '-Xmx%sg' % mem_gb, '-jar', gatk_fpath, '-T', 'ApplyRecalibration', '-R', ref_fpath, '-input', raw_indels_vcf_fpath,
-             '-mode', 'INDEL', '--ts_filter_level', '99.0', '-recalFile', recal_indel_fpath, '-tranchesFile', tranches_indel_fpath,
-             '-o', vcf_fpath], stderr=open(log_fpath, 'a'))
+            if return_code != 0:
+                print_variant_filtering_warning(raw_vcf_fpath, vcf_fpath)
+            else:
+                utils.call_subprocess(
+                ['java', '-Xmx%sg' % mem_gb, '-jar', gatk_fpath, '-T', 'ApplyRecalibration', '-R', ref_fpath, '-input', raw_indels_vcf_fpath,
+                 '-mode', 'INDEL', '--ts_filter_level', '99.0', '-recalFile', recal_indel_fpath, '-tranchesFile', tranches_indel_fpath,
+                 '-o', vcf_fpath], stderr=open(log_fpath, 'a'))
 
     report_vars_fpath = os.path.join(scratch_dirpath, project_id + '.var.txt')
     utils.call_subprocess(['java', '-jar', gatk_fpath, '-T', 'VariantEval', '-R', ref_fpath, '-eval', vcf_fpath,
@@ -211,6 +216,11 @@ def saveTsv(tsv_fpath, col_names, row_values, sample_names=None):
         else:
             print >>tsv_file, '\t'.join(map(val_to_str, row))
     tsv_file.close()
+
+
+def print_variant_filtering_warning(raw_vcf_fpath, vcf_fpath):
+    print 'Warning: variants filtering failed. The dataset may be too small to be suitable for variant recalibration.'
+    shutil.copy(raw_vcf_fpath, vcf_fpath)
 
 def do(ref_fpath, sample_ids, bam_fpaths, scratch_dirpath, output_dirpath, project_id, sample_files, sample_names):
     vcf_fpath = process_files(ref_fpath, sample_ids, bam_fpaths, scratch_dirpath, output_dirpath, project_id, sample_files, sample_names)
