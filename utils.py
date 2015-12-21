@@ -11,6 +11,7 @@ import subprocess
 import sys
 import config
 
+from os.path import join
 
 def name_from_fpath(fpath):
     return os.path.splitext(os.path.basename(fpath))[0]
@@ -135,3 +136,32 @@ def get_chr_lengths(ref_fpath):
             config.chr_names.append(line[0])
             config.chr_lengths[line[0]] = int(line[1])
     ref_index_file.close()
+
+
+def search_hg19_reference():
+    fasta_gz_fpaths = [join(config.db_dirpath, f) for f in os.listdir(config.db_dirpath) if f.endswith('.fa.gz')
+                           or f.endswith('.fna.gz') or f.endswith('.fasta.gz')]
+    for gz_fpath in fasta_gz_fpaths:
+        call_subprocess(['gunzip', '-f', gz_fpath])
+    fasta_fpaths = [join(config.db_dirpath, f) for f in os.listdir(config.db_dirpath) if f.endswith('.fa')
+                   or f.endswith('.fna') or f.endswith('.fasta')]
+    for fasta_filepath in fasta_fpaths:
+        if prepare_reference(fasta_filepath, config.temp_output_dir, silent=True):
+            return fasta_filepath
+    hg19_fpath = join(config.db_dirpath, 'hg19.fa')
+    tar_gz_fpaths = [join(config.db_dirpath, f) for f in os.listdir(config.db_dirpath) if f.endswith('.tar.gz')]
+    for tar_gz_fpath in tar_gz_fpaths:
+        tar_gz_name = os.path.basename(tar_gz_fpath)
+        if tar_gz_name == 'hg19.tar.gz' or tar_gz_name == 'chromFa.tar.gz':
+            ref_temp_dirpath = join(config.db_dirpath, 'hg19')
+            if not os.path.exists(ref_temp_dirpath):
+                os.mkdir(ref_temp_dirpath)
+            call_subprocess(['tar', '-xzf', tar_gz_fpath, '-C', ref_temp_dirpath])
+            hg19_chr_filenames = [join(config.db_dirpath, 'hg19', name + '.fa') for name in config.hg19_chr_names]
+            for filepath in hg19_chr_filenames:
+                if not os.path.exists(filepath):
+                    return None
+            call_subprocess(['cat'] + hg19_chr_filenames, stdout=open(hg19_fpath, 'w'))
+            if prepare_reference(hg19_fpath, config.temp_output_dir, silent=True):
+                return hg19_fpath
+    return None

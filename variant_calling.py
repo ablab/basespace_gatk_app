@@ -129,7 +129,7 @@ def process_files(ref_fpath, sample_ids, bam_fpaths, scratch_dirpath, output_dir
                 ['java', '-Xmx%sg' % mem_gb, '-jar', gatk_fpath, '-T', 'ApplyRecalibration', '-R', ref_fpath, '-input', raw_vcf_fpath, '-mode', 'SNP',
              '--ts_filter_level', '99.5', '-recalFile', recal_fpath, '-tranchesFile', tranches_fpath, '-o', raw_indels_vcf_fpath], stderr=open(log_fpath, 'a'))
 
-            utils.call_subprocess(
+            return_code = utils.call_subprocess(
                 ['java', '-Xmx%sg' % mem_gb, '-jar', gatk_fpath, '-T', 'VariantRecalibrator', '-R', ref_fpath, '-input', raw_indels_vcf_fpath,
                    '-resource:mills,known=true,training=true,truth=true,prior=12.0', mills_fpath,
                    '-resource:dbsnp,known=true,training=false,truth=false,prior=2.0', dbsnp_fpath,

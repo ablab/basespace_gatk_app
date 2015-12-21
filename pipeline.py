@@ -90,16 +90,7 @@ def parse_basespace_input(project_id):
         config.is_run_on_cloud = False
         utils.set_threads_and_mem()
         if ref_num == 0:
-            fasta_gz_fpaths = [join(config.db_dirpath,f) for f in os.listdir(config.db_dirpath) if f.endswith('.fa.gz')
-                           or f.endswith('.fna.gz') or f.endswith('.fasta.gz')]
-            for gz_fpath in fasta_gz_fpaths:
-                utils.call_subprocess(['gunzip', '-f', gz_fpath])
-            fasta_fpaths = [join(config.db_dirpath,f) for f in os.listdir(config.db_dirpath) if f.endswith('.fa')
-                           or f.endswith('.fna') or f.endswith('.fasta')]
-            for fasta_filepath in fasta_fpaths:
-                if utils.prepare_reference(fasta_filepath, config.temp_output_dir, silent=True):
-                    ref_fpath = fasta_filepath
-                    break
+            ref_fpath = utils.search_hg19_reference()
             if not ref_fpath or not os.path.exists(ref_fpath):
                 print 'Error: hg19 reference file was not found. Please copy the hg19 FASTA-file to ' + config.db_dirpath \
                       + ' and restart the application.'
