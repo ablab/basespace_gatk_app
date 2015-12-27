@@ -61,8 +61,7 @@ def process_single_chunk(ref_fpath, sampleID, bam_fpath, scratch_dirpath, log_fp
     raw_g_vcf_fpath = os.path.join(scratch_dirpath, sampleID + chr + '.' + str(part) + '.g.vcf')
     chr_chunk = chr + ':' + str(start) + '-' + str(end)
     cmd = ['java', '-Xmx%sg' % str(mem_gb), '-jar', gatk_fpath, '-T', 'HaplotypeCaller', '-R', ref_fpath, '-L', chr_chunk,
-                            '-I', bam_fpath, '-ERC', 'GVCF', '-variant_index_type', 'LINEAR',
-                           '-variant_index_parameter', '128000', '-o', raw_g_vcf_fpath]
+           '-I', bam_fpath, '-ERC', 'GVCF', '-variant_index_type', 'LINEAR', '-variant_index_parameter', '128000', '-o', raw_g_vcf_fpath]
     if not reduced_workflow:
         recaltable_fpath = os.path.join(scratch_dirpath, sampleID + '.table')
         cmd += ['-BQSR', recaltable_fpath, '--dbsnp', dbsnp_fpath]
@@ -76,7 +75,7 @@ def merge_vcfs(output_dirpath, sampleID, raw_vcf_fpaths, ref_fpath):
     variants = '-V ' + ' -V '.join(raw_vcf_fpaths)
     variants = variants.split()
     cmd = ['java', '-cp', gatk_fpath, 'org.broadinstitute.gatk.tools.CatVariants', '-R', ref_fpath, '-assumeSorted',
-               '-out', merge_vcf_fpath]
+           '-out', merge_vcf_fpath]
     utils.call_subprocess(cmd + variants, stderr=open(log_fpath, 'a'))
     return merge_vcf_fpath
 
@@ -120,14 +119,14 @@ def process_files(ref_fpath, sample_ids, bam_fpaths, scratch_dirpath, output_dir
                '-resource:omni,known=false,training=true,truth=true,prior=12.0', omni_fpath,
                '-resource:1000G,known=false,training=true,truth=false,prior=10.0', tg_indels_fpath,
                '-resource:dbsnp,known=true,training=false,truth=false,prior=2.0', dbsnp_fpath,
-               '-an', 'DP', '-an', 'QD', '-an', 'FS', '-an', 'MQ', '-an', 'MQRankSum', '-an', 'ReadPosRankSum',
-               '-mode', 'SNP', '-recalFile', recal_fpath, '-tranchesFile', tranches_fpath, '-nt', num_threads], stderr=open(log_fpath, 'a'))
+               '-an', 'DP', '-an', 'QD', '-an', 'FS', '-an', 'MQRankSum', '-an', 'ReadPosRankSum',
+               '-mode', 'SNP', '-recalFile', recal_fpath, '-tranchesFile', tranches_fpath], stderr=open(log_fpath, 'a'))
         if return_code != 0:
             print_variant_filtering_warning(raw_vcf_fpath, vcf_fpath)
         else:
             utils.call_subprocess(
                 ['java', '-Xmx%sg' % mem_gb, '-jar', gatk_fpath, '-T', 'ApplyRecalibration', '-R', ref_fpath, '-input', raw_vcf_fpath, '-mode', 'SNP',
-             '--ts_filter_level', '99.5', '-recalFile', recal_fpath, '-tranchesFile', tranches_fpath, '-o', raw_indels_vcf_fpath], stderr=open(log_fpath, 'a'))
+                 '--ts_filter_level', '99.5', '-recalFile', recal_fpath, '-tranchesFile', tranches_fpath, '-o', raw_indels_vcf_fpath], stderr=open(log_fpath, 'a'))
 
             return_code = utils.call_subprocess(
                 ['java', '-Xmx%sg' % mem_gb, '-jar', gatk_fpath, '-T', 'VariantRecalibrator', '-R', ref_fpath, '-input', raw_indels_vcf_fpath,
@@ -135,7 +134,7 @@ def process_files(ref_fpath, sample_ids, bam_fpaths, scratch_dirpath, output_dir
                    '-resource:dbsnp,known=true,training=false,truth=false,prior=2.0', dbsnp_fpath,
                    '-an', 'DP', '-an', 'QD', '-an', 'FS', '-an', 'MQRankSum', '-an', 'ReadPosRankSum',
                    '-mode', 'INDEL', '--maxGaussians', '4', '-recalFile', recal_indel_fpath,
-                 '-tranchesFile', tranches_indel_fpath, '-nt', num_threads], stderr=open(log_fpath, 'a'))
+                   '-tranchesFile', tranches_indel_fpath], stderr=open(log_fpath, 'a'))
 
             if return_code != 0:
                 print_variant_filtering_warning(raw_vcf_fpath, vcf_fpath)
@@ -147,11 +146,11 @@ def process_files(ref_fpath, sample_ids, bam_fpaths, scratch_dirpath, output_dir
 
     report_vars_fpath = os.path.join(scratch_dirpath, project_id + '.var.txt')
     utils.call_subprocess(['java', '-jar', gatk_fpath, '-T', 'VariantEval', '-R', ref_fpath, '-eval', vcf_fpath,
-               '-noST', '-noEV', '-EV', 'CountVariants', '-ST', 'Sample', '-o', report_vars_fpath], stderr=open(log_fpath, 'a'))
+                           '-noST', '-noEV', '-EV', 'CountVariants', '-ST', 'Sample', '-o', report_vars_fpath], stderr=open(log_fpath, 'a'))
 
     report_tstv_fpath = os.path.join(scratch_dirpath, project_id + '.tv.txt')
     utils.call_subprocess(['java', '-jar', gatk_fpath, '-T', 'VariantEval', '-R', ref_fpath, '-eval', vcf_fpath,
-               '-noST', '-noEV', '-EV', 'TiTvVariantEvaluator', '-ST', 'Sample', '-o', report_tstv_fpath], stderr=open(log_fpath, 'a'))
+                           '-noST', '-noEV', '-EV', 'TiTvVariantEvaluator', '-ST', 'Sample', '-o', report_tstv_fpath], stderr=open(log_fpath, 'a'))
 
     printReport(report_vars_fpath, report_tstv_fpath, sample_names, sample_ids, sample_files, output_dirpath)
 

@@ -60,12 +60,12 @@ def process_single_sample(ref_fpath, sample_id, bam_fpath, scratch_dirpath, outp
 
     print 'Realigning indels...'
     cmd = ['java', '-Xmx%sg' % mem_gb, '-jar', config.gatk_fpath, '-T', 'RealignerTargetCreator', '-R', ref_fpath, '-nt', num_threads,
-                            '-I', bam_fpath, '-o', targetintervals_fpath]
+           '-I', bam_fpath, '-o', targetintervals_fpath]
     if not config.reduced_workflow:
         cmd += ['-known', config.gold_indels_fpath, '-known', config.tg_indels_fpath]
     utils.call_subprocess(cmd, stderr=open(log_fpath, 'a'))
     cmd = ['java', '-Xmx%sg' % mem_gb, '-jar', config.gatk_fpath, '-T', 'IndelRealigner', '-R', ref_fpath,
-                            '-I', bam_fpath, '-targetIntervals',  targetintervals_fpath, '-o', final_bam_fpath]
+           '-I', bam_fpath, '-targetIntervals',  targetintervals_fpath, '-o', final_bam_fpath]
     if not config.reduced_workflow:
         cmd += ['-known', config.gold_indels_fpath, '-known', config.tg_indels_fpath]
     utils.call_subprocess(cmd, stderr=open(log_fpath, 'a'))
@@ -74,11 +74,11 @@ def process_single_sample(ref_fpath, sample_id, bam_fpath, scratch_dirpath, outp
         print 'Recalibrating bases...'
         recaltable_fpath = os.path.join(scratch_dirpath, sample_id + '.table')
         utils.call_subprocess(['java', '-Xmx%sg' % mem_gb, '-jar', config.gatk_fpath, '-T', 'BaseRecalibrator', '-R', ref_fpath, '-nct', num_threads,
-                                '-I', final_bam_fpath, '-knownSites', config.dbsnp_fpath, '-dt', 'ALL_READS', '-dfrac', '0.10 ',
-                                '-o', recaltable_fpath], stderr=open(log_fpath, 'a'))
+                               '-I', final_bam_fpath, '-knownSites', config.dbsnp_fpath, '-dt', 'ALL_READS', '-dfrac', '0.10 ',
+                               '-o', recaltable_fpath], stderr=open(log_fpath, 'a'))
         utils.call_subprocess(['java', '-Xmx%sg' % mem_gb, '-jar', config.gatk_fpath, '-T', 'PrintReads', '-R', ref_fpath, '-nct', num_threads,
-                                '-I', final_bam_fpath, '-BQSR', recaltable_fpath,
-                                '-o', bqsr_fpath], stderr=open(log_fpath, 'a'))
+                               '-I', final_bam_fpath, '-BQSR', recaltable_fpath,
+                               '-o', bqsr_fpath], stderr=open(log_fpath, 'a'))
 
     print 'Building BAM index...'
     utils.call_subprocess(['java', '-Xmx%sg' % mem_gb, '-jar', config.picard_fpath, 'BuildBamIndex', 'INPUT=%s' % final_bam_fpath,
